@@ -77,6 +77,7 @@ export const siteSchema = z.object({
   minArchiveItems: z.number().int().min(2).default(2),
   blogIndexable: z.boolean().default(true),
   primaryBlogCategory: segment.optional(),
+  storage: z.object({ provider: z.enum(['b2', 'r2', 'aws-s3', 'other-s3']), endpoint: z.string().url().startsWith('https://'), region: z.string().min(1) }).strict().optional(),
   media: z.object({
     _說明: z.string().optional(),
     bucket: z.string().regex(/^[A-Za-z0-9-]+$/),
