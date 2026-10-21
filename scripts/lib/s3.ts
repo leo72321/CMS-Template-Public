@@ -33,6 +33,7 @@ export async function uploadS3(
     forcePathStyle: true,
     credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
     maxAttempts: 3,
+    requestChecksumCalculation: 'WHEN_REQUIRED',
   });
 
   const results: Receipt[] = [];
