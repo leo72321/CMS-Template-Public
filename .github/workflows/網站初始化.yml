@@ -1,0 +1,86 @@
+name: 網站初始化精靈
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: '正式網域，例如 example.com（不要加 https://）'
+        required: true
+        type: string
+      title:
+        description: '網站名稱'
+        required: true
+        type: string
+      description:
+        description: '網站簡介'
+        required: true
+        type: string
+      author:
+        description: '作者或品牌名稱'
+        required: true
+        type: string
+      storage:
+        description: '圖片儲存服務（統一使用 S3 相容協議）'
+        required: true
+        default: b2
+        type: choice
+        options:
+          - b2
+          - r2
+          - aws-s3
+          - other-s3
+      endpoint:
+        description: 'S3 API 端點，例如 https://s3.us-west-004.backblazeb2.com'
+        required: true
+        type: string
+      region:
+        description: 'S3 區域，例如 us-west-004；R2 可用 auto'
+        required: true
+        type: string
+      bucket:
+        description: '儲存桶名稱'
+        required: true
+        type: string
+      cdn:
+        description: '圖片 CDN 子網域，例如 cdn.example.com'
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: site-initialize
+  cancel-in-progress: false
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: 驗證欄位並更新網站設定
+        env:
+          INIT_DOMAIN: ${{ inputs.domain }}
+          INIT_TITLE: ${{ inputs.title }}
+          INIT_DESCRIPTION: ${{ inputs.description }}
+          INIT_AUTHOR: ${{ inputs.author }}
+          INIT_STORAGE: ${{ inputs.storage }}
+          INIT_ENDPOINT: ${{ inputs.endpoint }}
+          INIT_REGION: ${{ inputs.region }}
+          INIT_BUCKET: ${{ inputs.bucket }}
+          INIT_CDN: ${{ inputs.cdn }}
+        run: node --import tsx scripts/setup-action.ts
+      - name: 驗證網站
+        run: npm run verify
+      - name: 儲存網站設定
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site.config.json docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(site): initialize site configuration"
+            git push
+          fi

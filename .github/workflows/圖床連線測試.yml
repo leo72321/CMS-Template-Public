@@ -1,0 +1,21 @@
+name: 圖床連線測試
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-storage:
+    name: 驗證 S3 寫入與 CDN 讀回
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: 測試上傳及 CDN 校驗
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+        run: node --import tsx scripts/test-storage.ts

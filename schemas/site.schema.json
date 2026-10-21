@@ -93,6 +93,33 @@
     "primaryBlogCategory": {
       "type": "string",
       "description": "主要文章分類 ID；它的分類彙整頁改成 301 轉至 /blog/，避免兩個相同的文章總覽"
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "endpoint",
+        "region"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "b2",
+            "r2",
+            "aws-s3",
+            "other-s3"
+          ]
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri"
+        },
+        "region": {
+          "type": "string"
+        }
+      }
     }
   }
 }

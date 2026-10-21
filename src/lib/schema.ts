@@ -77,12 +77,28 @@ export const siteSchema = z.object({
   minArchiveItems: z.number().int().min(2).default(2),
   blogIndexable: z.boolean().default(true),
   primaryBlogCategory: segment.optional(),
+  storage: z.object({
+    provider: z.enum(['b2', 'r2', 'aws-s3', 'other-s3']),
+    endpoint: z.string().refine((value) => {
+      try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && !url.username && !url.password &&
+          !url.search && !url.hash && url.pathname === '/' &&
+          url.hostname.includes('.') && url.hostname !== 'localhost';
+      } catch { return false; }
+    }, 'S3 端點必須為 HTTPS 根網址，不得帶帳密、查詢參數或路徑。'),
+    region: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+  }).strict().optional(),
   media: z.object({
     _說明: z.string().optional(),
     bucket: z.string().regex(/^[A-Za-z0-9-]+$/),
     cdnBase: z.string().refine((s) => !s || (s.startsWith('https://') && !/[?#]/.test(s))).default(''),
   }).strict(),
-}).strict();
+}).strict().superRefine((site, ctx) => {
+  if (site.storage && !site.media.cdnBase) {
+    ctx.addIssue({ code: 'custom', path: ['media', 'cdnBase'], message: '使用 S3 儲存時必須設定圖片 CDN 網址。' });
+  }
+});
 export type Site = z.infer<typeof siteSchema>;
 export type PostData = z.infer<typeof postSchema>;
 export type PageData = z.infer<typeof pageSchema>;
