@@ -75,6 +75,8 @@ export const siteSchema = z.object({
   gtmId: z.string().regex(/^(GTM-[A-Z0-9]+)?$/).default(''),
   pageSize: z.number().int().min(1).max(50).default(12),
   minArchiveItems: z.number().int().min(2).default(2),
+  blogIndexable: z.boolean().default(true),
+  primaryBlogCategory: segment.optional(),
   media: z.object({
     _說明: z.string().optional(),
     bucket: z.string().regex(/^[A-Za-z0-9-]+$/),
