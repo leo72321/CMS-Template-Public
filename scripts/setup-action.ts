@@ -2,6 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { siteSchema } from '../src/lib/schema';
 
+if (process.env.GITHUB_REPOSITORY === 'leo72321/CMS-Template-Public') {
+  throw new Error('請先使用公開模板複製成自己的私人倉庫，再執行初始化精靈。');
+}
 const env = (key: string) => (process.env['INIT_' + key] || '').trim();
 const domain = env('DOMAIN').toLowerCase();
 const cdn = env('CDN').toLowerCase();
