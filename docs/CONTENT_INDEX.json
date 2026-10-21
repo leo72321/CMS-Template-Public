@@ -37,7 +37,7 @@
     {
       "uid": "範例SEO檢查",
       "title": "SEO 發布檢查",
-      "path": "/網站筆記/SEO發布檢查/",
+      "path": "/blog/SEO發布檢查/",
       "file": "content/posts/SEO檢查.md",
       "kind": "post",
       "draft": false,
@@ -51,7 +51,7 @@
     {
       "uid": "範例圖片流程",
       "title": "圖片上傳流程",
-      "path": "/網站筆記/圖片上傳流程/",
+      "path": "/blog/圖片上傳流程/",
       "file": "content/posts/圖片上傳.md",
       "kind": "post",
       "draft": false,
@@ -65,7 +65,7 @@
     {
       "uid": "範例新增文章",
       "title": "新增第一篇文章",
-      "path": "/網站筆記/新增第一篇文章/",
+      "path": "/blog/新增第一篇文章/",
       "file": "content/posts/第一篇文章.md",
       "kind": "post",
       "draft": false,
