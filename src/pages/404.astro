@@ -1,0 +1,6 @@
+---
+import { getModel } from '../lib/content';
+import Base from '../layouts/Base.astro';
+const model = await getModel();
+---
+<Base model={model} route={{ path: '/404/', kind: 'page', title: '找不到這個頁面', description: '這個網址可能已經移動，請回首頁或文章索引繼續瀏覽。', noindex: true }}><section class="hero"><p class="eyebrow">404</p><h1>這個頁面不在這裡。</h1><p>可以從文章索引繼續找。</p><a class="text-link" href="/blog/">瀏覽全部文章 ↗</a></section></Base>

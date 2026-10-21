@@ -1,0 +1,41 @@
+{
+  "name": "cms-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "少爺的輕量靜態網站公版：繁體中文操作、Post / Page、SEO 自動化與 B2 圖床",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "preview": "astro preview --host 0.0.0.0",
+    "check": "astro check",
+    "build": "node --import tsx scripts/validate.ts && node --import tsx scripts/reports.ts && node --import tsx scripts/cloudflare.ts && astro build && node --import tsx scripts/audit.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "verify": "npm run check && npm test && npm run build && npm run test:output",
+    "site:init": "node --import tsx scripts/init.ts",
+    "content:new": "node --import tsx scripts/new-content.ts",
+    "media:add": "node --env-file-if-exists=.env --import tsx scripts/media.ts",
+    "media:verify": "node --import tsx scripts/verify-media.ts",
+    "docs:update": "node --import tsx scripts/reports.ts",
+    "docs:check": "node --import tsx scripts/reports.ts --check",
+    "urls:check": "node --import tsx scripts/urls.ts --check",
+    "urls:update": "node --import tsx scripts/urls.ts --update",
+    "test:output": "node --import tsx --test tests/integration/*.test.ts"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.3",
+    "astro": "7.4.1",
+    "gray-matter": "4.0.3",
+    "sharp": "^0.34.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.11",
+    "@types/node": "^24.0.0",
+    "cheerio": "^1.1.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

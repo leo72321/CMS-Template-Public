@@ -1,0 +1,9 @@
+---
+import { encodePath } from '../lib/model';
+import type { Site } from '../lib/schema';
+interface Props { items: { name: string; path: string }[]; site: Site; }
+const { items, site } = Astro.props;
+const schema = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items.map((i, index) => ({ '@type': 'ListItem', position: index + 1, name: i.name, item: `https://${site.domain}${encodePath(i.path)}` })) };
+---
+<nav class="breadcrumbs" aria-label="目前位置"><ol>{items.map((item, i) => <li>{i < items.length - 1 ? <a href={item.path}>{item.name}</a> : <span aria-current="page">{item.name}</span>}</li>)}</ol></nav>
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schema).replace(/</g, '\\u003c')} />

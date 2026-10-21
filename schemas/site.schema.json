@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cms-template.local/site.schema.json",
+  "title": "網站設定（中文提示）",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "domain",
+    "title",
+    "description",
+    "author",
+    "media"
+  ],
+  "properties": {
+    "domain": {
+      "type": "string",
+      "description": "正式網域"
+    },
+    "title": {
+      "type": "string",
+      "description": "網站名稱"
+    },
+    "description": {
+      "type": "string",
+      "description": "網站簡介"
+    },
+    "author": {
+      "type": "string",
+      "description": "預設作者"
+    },
+    "language": {
+      "type": "string",
+      "description": "台灣繁體中文，請保持 zh-TW",
+      "const": "zh-TW"
+    },
+    "indexable": {
+      "type": "boolean",
+      "description": "是否開放搜尋引擎收錄，公版預設 false"
+    },
+    "productionBranch": {
+      "type": "string",
+      "description": "Cloudflare Pages 正式分支"
+    },
+    "gtmId": {
+      "type": "string",
+      "description": "GTM 容器 ID，留空不載入"
+    },
+    "pageSize": {
+      "type": "integer",
+      "description": "每頁文章數，1 到 50",
+      "minimum": 1,
+      "maximum": 50
+    },
+    "minArchiveItems": {
+      "type": "integer",
+      "description": "彙整頁最低可索引文章數，至少 2",
+      "minimum": 2
+    },
+    "_說明": {
+      "type": "string",
+      "description": "中文註解，不影響功能"
+    },
+    "$schema": {
+      "type": "string",
+      "description": "編輯器欄位提示來源"
+    },
+    "media": {
+      "type": "object",
+      "description": "B2 圖床設定",
+      "additionalProperties": false,
+      "required": [
+        "bucket"
+      ],
+      "properties": {
+        "_說明": {
+          "type": "string",
+          "description": "中文註解"
+        },
+        "bucket": {
+          "type": "string",
+          "description": "B2 儲存桶名稱"
+        },
+        "cdnBase": {
+          "type": "string",
+          "description": "圖片公開網址前綴，留空依網域自動產生"
+        }
+      }
+    }
+  }
+}

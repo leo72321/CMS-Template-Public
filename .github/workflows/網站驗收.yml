@@ -1,0 +1,43 @@
+name: 網站自動驗收
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: 網站驗收-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    name: 內容、SEO 與效能檢查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取得網站原始碼
+        uses: actions/checkout@v4
+      - name: 設定 Node.js 執行環境
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 安裝固定版本套件
+        run: npm ci
+      - name: 確認中文結構報表已提交
+        run: npm run docs:check
+      - name: 型別、測試、建置與網站驗收
+        run: npm run verify
+      - name: 實際確認已使用的 CDN 圖片
+        run: npm run media:verify
+      - name: 保存可下載的中文驗收報表
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 網站驗收報表
+          path: .reports/
+          include-hidden-files: true
+          if-no-files-found: ignore
+      - name: 保存靜態網站產物
+        uses: actions/upload-artifact@v4
+        with:
+          name: 靜態網站
+          path: dist/
