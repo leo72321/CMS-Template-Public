@@ -17,7 +17,7 @@ const entry = document ? (await getCollection(document.kind === 'post' ? 'posts'
 const rendered = entry ? await render(entry) : undefined;
 const Content = rendered?.Content;
 const category = document?.kind === 'post' ? model.categories.find(c => c.id === (document as Post).data.category) : undefined;
-const crumbs = [{ name: '首頁', path: '/' }, ...(category ? [{ name: category.name, path: `/${category.slug}/` }] : []), { name: route.title, path: route.path }];
+const crumbs = [{ name: '首頁', path: '/' }, ...(category ? [{ name: category.id === model.site.primaryBlogCategory ? '全部文章' : category.name, path: category.id === model.site.primaryBlogCategory ? '/blog/' : `/${category.slug}/` }] : []), { name: route.title, path: route.path }];
 const topic = document ? model.topics.find(t => t.hub === document.data.uid || (document.kind === 'post' && t.id === (document as Post).data.topic)) : undefined;
 const hub = topic ? [...model.pages, ...model.posts].find(d => d.data.uid === topic.hub) : undefined;
 const cluster = topic ? model.posts.filter(p => p.data.topic === topic.id && p.data.uid !== document?.data.uid) : [];
