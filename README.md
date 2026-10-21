@@ -20,6 +20,12 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 | Agent 該遵守什麼規則 | [AGENTS.md](AGENTS.md) |
 | 功能與驗收範圍 | [功能與驗收](docs/功能與驗收.md) |
 
+## 在 GitHub 執行網站驗收
+
+開啟倉庫的 [Actions（動作）](../../actions)，在左側選擇「網站自動驗收」，按 **Run workflow（執行工作流程）** 並選擇 `main`，就能手動跑完整檢查。修改程式碼或提出 PR 時也會自動執行。
+
+> 目前只有網站驗收工作流程；「網站初始化精靈」仍在規劃中，尚未加入 GitHub Actions。
+
 ## 建立新網站
 
 將倉庫設為 GitHub Template（範本倉庫），再用「Use this template／使用此範本」建立新站。每站獨立修改與部署，公版更新不會自動改到舊站。
