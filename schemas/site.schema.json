@@ -85,6 +85,14 @@
           "description": "圖片公開網址前綴，留空依網域自動產生"
         }
       }
+    },
+    "blogIndexable": {
+      "type": "boolean",
+      "description": "是否允許 /blog/ 文章總覽被搜尋引擎收錄（仍受全站開關限制）"
+    },
+    "primaryBlogCategory": {
+      "type": "string",
+      "description": "主要文章分類 ID；它的分類彙整頁改成 301 轉至 /blog/，避免兩個相同的文章總覽"
     }
   }
 }
