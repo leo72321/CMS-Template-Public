@@ -1,0 +1,6 @@
+---
+import type { Site } from '../lib/schema';
+interface Props { site: Site; }
+const { site } = Astro.props;
+---
+<footer class="site-footer"><span>© {new Date().getFullYear()} {site.title}</span><a href="/blog/">文章索引</a></footer>

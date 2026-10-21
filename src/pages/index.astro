@@ -1,0 +1,13 @@
+---
+import { getModel } from '../lib/content';
+import Base from '../layouts/Base.astro';
+import PostList from '../components/PostList.astro';
+const model = await getModel();
+const route = model.byPath.get('/')!;
+const categories = model.categories.filter(c => model.posts.some(p => p.data.category === c.id));
+---
+<Base model={model} route={route}>
+  <section class="hero"><p class="eyebrow">知識與觀點</p><h1>{model.site.title}</h1><p class="hero-description">{model.site.description}</p><a class="text-link" href="/blog/">瀏覽全部文章 <span aria-hidden="true">↗</span></a></section>
+  <section class="section"><div class="section-heading"><h2>最新文章</h2><span>{model.posts.length.toString().padStart(2, '0')} 篇內容</span></div><PostList posts={model.posts.slice(0, 6)} categories={model.categories} />{!model.posts.length && <p class="empty">新的觀點，正在準備中。</p>}</section>
+  {categories.length > 0 && <section class="section"><div class="section-heading"><h2>依主題閱讀</h2></div><div class="category-list">{categories.map(c => <a href={`/${c.slug}/`}><strong>{c.name}</strong><span>{c.description}</span><span aria-hidden="true">↗</span></a>)}</div></section>}
+</Base>

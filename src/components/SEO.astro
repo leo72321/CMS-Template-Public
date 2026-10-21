@@ -1,0 +1,39 @@
+---
+import { encodePath, type Route } from '../lib/model';
+import type { Site } from '../lib/schema';
+interface Props { route: Route; site: Site; }
+const { route, site } = Astro.props;
+const canonical = `https://${site.domain}${encodePath(route.path)}`;
+const title = route.kind === 'home' ? site.title : `${route.title}｜${site.title}`;
+const cover = route.document?.data.cover;
+const image = cover ? new URL(cover.ogUrl ?? cover.url, `https://${site.domain}`).href : undefined;
+const document = route.document;
+const schema = document?.kind === 'post' ? {
+  '@context': 'https://schema.org', '@type': 'BlogPosting', headline: document.data.title,
+  description: document.data.description, url: canonical, mainEntityOfPage: canonical,
+  datePublished: `${document.data.publishedAt}T00:00:00+08:00`, dateModified: `${document.data.updatedAt ?? document.data.publishedAt}T00:00:00+08:00`,
+  author: { '@type': 'Person', name: site.author }, publisher: { '@type': 'Organization', name: site.title },
+  ...(image ? { image: [image] } : {}),
+} : {
+  '@context': 'https://schema.org', '@type': route.kind === 'category' || route.kind === 'tag' || route.kind === 'blog' ? 'CollectionPage' : 'WebPage',
+  name: route.title, description: route.description, url: canonical,
+};
+// 轉義 < 防止文章標題意外結束 JSON-LD 的 script 標籤。
+const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
+---
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{title}</title>
+<meta name="description" content={route.description} />
+<meta name="robots" content={route.noindex ? 'noindex, follow' : 'index, follow'} />
+<link rel="canonical" href={canonical} />
+<meta property="og:locale" content="zh_TW" />
+<meta property="og:type" content={route.kind === 'post' ? 'article' : 'website'} />
+<meta property="og:site_name" content={site.title} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={route.description} />
+<meta property="og:url" content={canonical} />
+<meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+{image && <><meta property="og:image" content={image} /><meta property="og:image:alt" content={cover!.alt} /><meta name="twitter:image" content={image} /></>}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<script is:inline type="application/ld+json" set:html={json(schema)} />

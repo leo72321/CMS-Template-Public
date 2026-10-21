@@ -1,0 +1,99 @@
+{
+  "domain": "example.com",
+  "categories": [
+    {
+      "id": "網站筆記",
+      "slug": "網站筆記",
+      "name": "網站筆記",
+      "description": "網站內容管理、圖片與 SEO 的操作筆記。正式使用時可替換成自己的分類。",
+      "indexable": false
+    }
+  ],
+  "tags": [
+    {
+      "id": "SEO",
+      "slug": "SEO",
+      "name": "SEO 搜尋引擎最佳化",
+      "description": "網站索引、連結與文章結構。",
+      "indexable": false
+    },
+    {
+      "id": "內容管理",
+      "slug": "內容管理",
+      "name": "內容管理",
+      "description": "從文章到頁面的內容整理方法。",
+      "indexable": false
+    }
+  ],
+  "topics": [
+    {
+      "id": "網站入門",
+      "name": "網站入門",
+      "description": "由中心頁串起新增文章、圖片與 SEO 檢查。",
+      "hub": "入門指南"
+    }
+  ],
+  "documents": [
+    {
+      "uid": "範例SEO檢查",
+      "title": "SEO 發布檢查",
+      "path": "/網站筆記/SEO發布檢查/",
+      "file": "content/posts/SEO檢查.md",
+      "kind": "post",
+      "draft": false,
+      "description": "確認網址、圖片、內部連結、索引設定與網站地圖，再讓新文章公開。",
+      "category": "網站筆記",
+      "tags": [
+        "SEO"
+      ],
+      "topic": "網站入門"
+    },
+    {
+      "uid": "範例圖片流程",
+      "title": "圖片上傳流程",
+      "path": "/網站筆記/圖片上傳流程/",
+      "file": "content/posts/圖片上傳.md",
+      "kind": "post",
+      "draft": false,
+      "description": "用一個指令縮圖、傳到 B2 並填回文章，保留圖片尺寸與替代文字。",
+      "category": "網站筆記",
+      "tags": [
+        "內容管理"
+      ],
+      "topic": "網站入門"
+    },
+    {
+      "uid": "範例新增文章",
+      "title": "新增第一篇文章",
+      "path": "/網站筆記/新增第一篇文章/",
+      "file": "content/posts/第一篇文章.md",
+      "kind": "post",
+      "draft": false,
+      "description": "填好標題、分類、標籤與發布日期，其他網站結構由建置程序自動整理。",
+      "category": "網站筆記",
+      "tags": [
+        "內容管理",
+        "SEO"
+      ],
+      "topic": "網站入門"
+    },
+    {
+      "uid": "入門指南",
+      "title": "網站內容入門指南",
+      "path": "/guide/",
+      "file": "content/pages/入門指南.md",
+      "kind": "page",
+      "draft": false,
+      "description": "從文章、獨立頁面到圖片，熟悉這套網站公版的基本操作。"
+    },
+    {
+      "uid": "關於網站",
+      "title": "關於這個網站",
+      "path": "/about/",
+      "file": "content/pages/關於.md",
+      "kind": "page",
+      "draft": false,
+      "description": "這裡可以說明網站的定位、作者與聯絡方式。"
+    }
+  ]
+}

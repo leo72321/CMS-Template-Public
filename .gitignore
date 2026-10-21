@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.astro/
+.reports/
+.media-cache/
+.env
+.env.*
+!.env.example
+.DS_Store
+public/_headers
+public/_redirects

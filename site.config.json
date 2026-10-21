@@ -1,0 +1,19 @@
+{
+  "$schema": "./schemas/site.schema.json",
+  "_說明": "先填 domain（網域）、title（站名）、description（網站簡介）。indexable 是是否允許搜尋引擎收錄，公版預設關閉。所有欄位詳見 docs/設定說明.md。",
+  "domain": "example.com",
+  "title": "網站公版",
+  "description": "一套讓 Agent 專心寫內容、讓網站自動整理 SEO 結構的輕量公版。",
+  "author": "網站編輯",
+  "language": "zh-TW",
+  "indexable": false,
+  "productionBranch": "main",
+  "gtmId": "",
+  "pageSize": 12,
+  "minArchiveItems": 2,
+  "media": {
+    "_說明": "cdnBase 留空時，自動使用 https://cdn.網域/file/儲存桶/網域/；B2 金鑰放本機環境變數。",
+    "bucket": "wordpress-cdn",
+    "cdnBase": ""
+  }
+}
