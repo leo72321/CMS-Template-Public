@@ -1,4 +1,5 @@
 import { test, after } from 'node:test';
+import { encodePath } from '../../src/lib/model';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -20,6 +21,18 @@ function altered(file: string, transform: (s: string) => string, expected: RegEx
   } finally { writeFileSync(file, before); }
 }
 test('正常產物可通過最終驗收', () => { const r = audit(); assert.equal(r.status, 0, r.stderr); });
+test('文章卡片與標準網址走 /blog/，舊分類網址輸出永久轉址', () => {
+  const home = readFileSync(join(sandbox, 'dist/index.html'), 'utf8');
+  const redirects = readFileSync(join(sandbox, 'dist/_redirects'), 'utf8').split('\n');
+  for (const slug of ['SEO發布檢查', '圖片上傳流程', '新增第一篇文章']) {
+    const canonical = `/blog/${slug}/`, previous = `/網站筆記/${slug}/`;
+    const page = readFileSync(join(sandbox, 'dist', 'blog', slug, 'index.html'), 'utf8');
+    assert.ok(home.includes(`href="${canonical}"`), `首頁文章連結應使用 /blog/：${slug}`);
+    assert.ok(page.includes(`href="https://example.com${encodePath(canonical)}"`), `標準網址需使用 /blog/：${slug}`);
+    assert.ok(redirects.includes(`${encodePath(previous)} ${encodePath(canonical)} 301`), `未產生舊文章轉址：${slug}`);
+  }
+  assert.ok(redirects.includes(`${encodePath('/網站筆記/')} /blog/ 301`), '重複分類列表需轉至 /blog/');
+});
 test('故意加入失效連結會被攔下', () => altered(path, s => s.replace('</main>', '<a href="/does-not-exist/">不存在</a></main>'), /失效連結/));
 test('故意放重複 H1 會被攔下', () => altered(path, s => s.replace('</main>', '<h1>重複標題</h1></main>'), /一個 H1/));
 test('故意改錯 Canonical 會被攔下', () => altered(path, s => s.replace(/rel="canonical" href="[^"]+"/, 'rel="canonical" href="https://wrong.example/"'), /Canonical/));

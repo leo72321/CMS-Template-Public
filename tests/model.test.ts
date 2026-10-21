@@ -20,10 +20,32 @@ test('拒絕穿越、百分比和不合法的日期', () => {
   assert.throws(() => post('a', { updatedAt: '2025-01-01' }));
   assert.throws(() => normalizePath('/%2e%2e/secret/'));
 });
-test('中文文章只有分類和 slug 兩層，改標題不改網址', () => {
+test('文章永久網址一律 /blog/，改標題或分類不改文章路徑', () => {
   const p = post('第一篇', { title: '改過的標題' });
-  assert.equal(postPath(p, input().categories), '/分類/第一篇/');
-  assert.equal(build(input([p])).routes.find(r => r.kind === 'post')!.path, '/分類/第一篇/');
+  const i = input([p]);
+  assert.equal(postPath(p, i.categories), '/blog/第一篇/');
+  assert.equal(build(i).routes.find(r => r.kind === 'post')!.path, '/blog/第一篇/');
+  assert.equal(build(i).redirects.get('/分類/第一篇/'), '/blog/第一篇/');
+  i.categories[0].slug = '其他分類';
+  assert.equal(postPath(p, i.categories), '/blog/第一篇/');
+});
+test('主要分類歸併到 /blog/，舊分類頁與文章網址都 301', () => {
+  const i = input([post('a'), post('b')]);
+  const m = build(i, { primaryBlogCategory: '測試' });
+  assert.equal(m.byPath.has('/分類/'), false);
+  assert.equal(m.redirects.get('/分類/'), '/blog/');
+  assert.equal(m.redirects.get('/分類/a/'), '/blog/a/');
+  assert.equal(m.byPath.get('/blog/a/')?.kind, 'post');
+  assert.equal(m.byPath.get('/blog/')?.kind, 'blog');
+  assert.throws(() => build(i, { primaryBlogCategory: '不存在' }), /找不到文章首頁指定分類/);
+  assert.throws(() => build(i, { primaryBlogCategory: '測試', blogIndexable: false }), /blogIndexable|主要分類/);
+  assert.equal(build(i, { blogIndexable: false }).byPath.get('/blog/')!.noindex, true);
+});
+test('不同分類同名 slug 必須攔截，避免 /blog/ 路徑碰撞', () => {
+  const i = input([post('a')]);
+  i.categories.push({ id: '第二類', name: '其他分類', slug: '其他', description: '其他主題', indexable: true });
+  i.posts.push(post('b', { slug: 'a', category: '第二類' }));
+  assert.throws(() => build(i), /網址衝突/);
 });
 test('草稿與未到台灣發布日的文章都不產生路由', () => {
   const model = build(input([post('草稿', { draft: true }), post('明天', { publishedAt: '2026-10-22' }), post('今天', { publishedAt: '2026-10-21' })]));
@@ -56,7 +78,7 @@ test('範例和 noindex 文章不計入分類標籤的開放索引門檻', () =>
 test('整站開關、範例內容和 Cloudflare 預覽均保護索引', () => {
   assert.ok(build(input([post('a')]), { indexable: false }).routes.every(r => r.noindex));
   assert.ok(build(input([post('a')]), {}, true).routes.every(r => r.noindex));
-  assert.equal(build(input([post('a', { sample: true })])).byPath.get('/分類/a/')!.noindex, true);
+  assert.equal(build(input([post('a', { sample: true })])).byPath.get('/blog/a/')!.noindex, true);
   assert.equal(isPreview({ CF_PAGES: '1', CF_PAGES_BRANCH: 'feature' }, 'main'), true);
   assert.equal(isPreview({ CF_PAGES: '1' }, 'main'), true);
   assert.equal(isPreview({ CF_PAGES: '1', CF_PAGES_BRANCH: 'main' }, 'main'), false);
@@ -86,7 +108,7 @@ test('既有網址更動必須有 301，標題改字不需轉址', () => {
   assert.throws(() => checkURLs(build(input([post('a', { slug: 'b' })])), before), /aliases/);
   assert.doesNotThrow(() => checkURLs(build(input([post('a', { title: '新標題' })])), before));
   const m = build(input([post('a', { slug: 'b', aliases: ['/分類/a/'] })]));
-  assert.equal(checkURLs(m, before).redirects['/分類/a/'], '/分類/b/');
+  assert.equal(checkURLs(m, before).redirects['/分類/a/'], '/blog/b/');
 });
 test('舊轉址不可刪除，也不能與現有頁面衝突', () => {
   assert.throws(() => checkURLs(build(input([post('a')])), { urls: {}, redirects: { '/old/': '/分類/a/' } }), /不可遺失/);

@@ -15,5 +15,7 @@
     "_說明": "cdnBase 留空時，自動使用 https://cdn.網域/file/儲存桶/網域/；B2 金鑰放本機環境變數。",
     "bucket": "wordpress-cdn",
     "cdnBase": ""
-  }
+  },
+  "blogIndexable": true,
+  "primaryBlogCategory": "網站筆記"
 }
