@@ -107,9 +107,10 @@ run(() => {
     actualURLs.push(...urls);
   }
   const expectedURLs = model.routes.filter(r => !r.noindex).map(r => 'https://' + model.site.domain + encodePath(r.path));
-  if (new Set(actualURLs).size !== actualURLs.length ||
+  const actualURLSet = new Set(actualURLs);
+  if (actualURLSet.size !== actualURLs.length ||
       actualURLs.length !== expectedURLs.length ||
-      expectedURLs.some(url => !actualURLs.includes(url))) {
+      expectedURLs.some(url => !actualURLSet.has(url))) {
     errors.push('Sitemap（網站地圖）與實際可索引頁面不一致、重複或漏列。');
   }
   if (!readFileSync('dist/robots.txt', 'utf8').includes('Sitemap: https://' + model.site.domain + '/sitemap.xml')) {
