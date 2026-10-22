@@ -1,0 +1,83 @@
+name: 圖床設定精靈
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 'S3 圖床服務商（共用 AWS SDK，以下選單有官方常見 Endpoint 預設）'
+        required: true
+        type: choice
+        default: b2
+        options:
+          - b2
+          - r2
+          - aws-s3
+          - wasabi
+          - digitalocean
+          - hetzner
+          - scaleway
+          - akamai
+          - other-s3
+      region:
+        description: 'B2 us-west-004；AWS ap-east-1；Spaces sgp1；R2 留空=auto'
+        required: false
+        type: string
+      endpoint:
+        description: '可選：手動指定完整 S3 HTTPS Endpoint；Akamai／Other S3 必填'
+        required: false
+        type: string
+      account_id:
+        description: '只有 Cloudflare R2 需要：Account ID（32位）；若已填 Endpoint 可留空'
+        required: false
+        type: string
+      bucket:
+        description: '要使用的 Bucket／Space 名稱（請先在供應商建立）'
+        required: true
+        type: string
+      cdn_url:
+        description: '公開 CDN 完整 HTTPS URL（可包含 /file/桶名/ 路徑，不是 S3 Endpoint）'
+        required: true
+        type: string
+
+
+permissions:
+  contents: write
+concurrency:
+  group: cms-configuration-main
+  cancel-in-progress: false
+jobs:
+  configure:
+    name: 設定 S3 相容圖床及 CDN 公開讀取路徑
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: 套用供應商預設並驗證 CDN URL／媒體歷史相容性
+        env:
+          STORAGE_PROVIDER: ${{ inputs.provider }}
+          STORAGE_REGION: ${{ inputs.region }}
+          STORAGE_ENDPOINT: ${{ inputs.endpoint }}
+          STORAGE_ACCOUNT_ID: ${{ inputs.account_id }}
+          STORAGE_BUCKET: ${{ inputs.bucket }}
+          STORAGE_CDN_URL: ${{ inputs.cdn_url }}
+        run: node --import tsx scripts/storage-action.ts
+      - name: 網站與媒體索引完整驗收
+        run: npm run verify
+      - name: 儲存經過驗證的非機密設定
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site.config.json docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(storage): configure S3 provider, bucket and CDN URL"
+            git push origin HEAD:main
+          else
+            echo "圖床設定沒有變動。"
+          fi
