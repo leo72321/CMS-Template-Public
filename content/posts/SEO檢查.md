@@ -3,7 +3,7 @@ uid: 範例SEO檢查
 slug: SEO發布檢查
 title: SEO 發布檢查
 description: 確認網址、圖片、內部連結、索引設定與網站地圖，再讓新文章公開。
-category: 網站筆記
+category: 網站教學
 tags:
   - SEO
 topic: 網站入門
