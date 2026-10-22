@@ -1,4 +1,8 @@
-# CMS-Template｜輕量網站公版
+# 天公仔CMS
+
+<p align="center">
+  <img src="assets/php-tiangong-meme.webp" alt="天公仔 PHP 工程師梗圖：寫 PHP 是走投無路的人在做的，老子我天公仔，看起來像走投無路的嗎？" width="680" />
+</p>
 
 **寫文章、填欄位、放圖片；其餘交給網站自動整理。**
 
