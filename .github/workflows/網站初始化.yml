@@ -27,27 +27,36 @@ on:
           - b2
           - r2
           - aws-s3
+          - wasabi
+          - digitalocean
+          - hetzner
+          - scaleway
+          - akamai
           - other-s3
-      endpoint:
-        description: 'S3 API 端點，例如 https://s3.us-west-004.backblazeb2.com'
-        required: true
-        type: string
       region:
-        description: 'S3 區域，例如 us-west-004；R2 可用 auto'
-        required: true
+        description: 'S3 Region，如 B2 us-west-004／Spaces sgp1；R2 留空自動 auto'
+        required: false
+        type: string
+      endpoint:
+        description: '可選 S3 API Endpoint；Akamai／Other S3 必須填'
+        required: false
+        type: string
+      account_id:
+        description: '僅 Cloudflare R2 需填 32 字元 Account ID（若已填 Endpoint 可留空）'
+        required: false
         type: string
       bucket:
-        description: '儲存桶名稱'
+        description: 'Bucket 名稱，需先自行建立'
         required: true
         type: string
-      cdn:
-        description: '圖片 CDN 子網域，例如 cdn.example.com'
+      cdn_url:
+        description: 'CDN 完整公開 HTTPS URL，可含 /file/桶名/，不得填 S3 Endpoint'
         required: true
         type: string
 permissions:
   contents: write
 concurrency:
-  group: site-initialize
+  group: cms-configuration-main
   cancel-in-progress: false
 jobs:
   initialize:
@@ -71,7 +80,8 @@ jobs:
           INIT_ENDPOINT: ${{ inputs.endpoint }}
           INIT_REGION: ${{ inputs.region }}
           INIT_BUCKET: ${{ inputs.bucket }}
-          INIT_CDN: ${{ inputs.cdn }}
+          INIT_CDN_URL: ${{ inputs.cdn_url }}
+          INIT_ACCOUNT_ID: ${{ inputs.account_id }}
         run: node --import tsx scripts/setup-action.ts
       - name: 驗證網站
         run: npm run verify
