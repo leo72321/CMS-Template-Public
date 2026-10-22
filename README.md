@@ -121,3 +121,7 @@ npm run media:verify
 ## 大型網站 Sitemap（SEO）
 
 自動生成 `/sitemap.xml` 總索引，將 POST、PAGE、分類、TAG 分開成靜態子 Sitemap（與總索引放在網站根目錄，避免搜尋引擎的路徑範圍限制）；每份預設最多 **200 個 URL**，可在 `site.config.json` 的 `sitemap.maxUrls` 自訂。GSC 只需提交 `/sitemap.xml`；完整設定與 noindex 行為見 [設定說明](docs/設定說明.md)。
+
+## S3 圖床設定（Actions 下拉選單）
+
+直接在 **Actions → 圖床設定精靈** 選 B2、R2、AWS S3、Wasabi、DigitalOcean Spaces、Hetzner、Scaleway、Akamai 或自訂 S3。**CDN URL 也在同一份表單填寫完整 HTTPS 前綴（可帶 `/file/桶名/` 路徑）**。S3 Access Key / Secret Key 另外存 GitHub Secrets，並使用「圖床連線測試」實際 PutObject + CDN 讀回比對。舊 B2 Native 仍保留相容。詳見 [完整設定與驗收](docs/S3圖床設定.md)。

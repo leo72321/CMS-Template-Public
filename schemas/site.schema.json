@@ -82,7 +82,7 @@
         },
         "cdnBase": {
           "type": "string",
-          "description": "圖片公開網址前綴，留空依網域自動產生"
+          "description": "完整公開 CDN URL 前綴（含 https://，可有 /file/儲存桶/ 路徑）；實際圖片網址另接網站網域與物件路徑。不是 S3 Endpoint。"
         }
       }
     },
@@ -92,6 +92,7 @@
     },
     "storage": {
       "type": "object",
+      "description": "S3 相容圖床供應商。由 GitHub Actions 圖床設定精靈選單自動設定。金鑰只放 Secrets。",
       "additionalProperties": false,
       "required": [
         "provider",
@@ -105,15 +106,24 @@
             "b2",
             "r2",
             "aws-s3",
+            "wasabi",
+            "digitalocean",
+            "hetzner",
+            "scaleway",
+            "akamai",
             "other-s3"
-          ]
+          ],
+          "description": "Backblaze B2、Cloudflare R2、AWS S3、Wasabi、DigitalOcean Spaces、Hetzner、Scaleway、Akamai/Linode、其他 S3"
         },
         "endpoint": {
           "type": "string",
-          "format": "uri"
+          "format": "uri",
+          "description": "S3 API 完整 HTTPS 根網址，不能填 CDN 網址"
         },
         "region": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "description": "S3 Region；Cloudflare R2 使用 auto"
         }
       }
     },
