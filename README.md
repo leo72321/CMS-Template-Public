@@ -120,4 +120,4 @@ npm run media:verify
 
 ## 大型網站 Sitemap（SEO）
 
-自動生成 `/sitemap.xml` 總索引，將 POST、PAGE、分類、TAG 分開成靜態子 Sitemap；每份預設最多 **200 個 URL**，可在 `site.config.json` 的 `sitemap.maxUrls` 自訂。GSC 只需提交 `/sitemap.xml`；完整設定與 noindex 行為見 [設定說明](docs/設定說明.md)。
+自動生成 `/sitemap.xml` 總索引，將 POST、PAGE、分類、TAG 分開成靜態子 Sitemap（與總索引放在網站根目錄，避免搜尋引擎的路徑範圍限制）；每份預設最多 **200 個 URL**，可在 `site.config.json` 的 `sitemap.maxUrls` 自訂。GSC 只需提交 `/sitemap.xml`；完整設定與 noindex 行為見 [設定說明](docs/設定說明.md)。
