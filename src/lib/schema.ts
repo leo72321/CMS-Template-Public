@@ -114,6 +114,15 @@ export const siteSchema = z.object({
   // 建置時計算推薦。正文已有內部連結時會佔用名額，不會重複推薦。
   // 全站所有 POST 共用的頁尾配置，個別區塊可停用後重新啟用。
   postFooter: postFooterSchema.prefault({ tags: true, author: { enabled: false }, blocks: [] }),
+  // Cloudflare Pages _redirects 容量保護。依首次記錄日期淘汰，非實際最後造訪時間。
+  redirectManagement: z.object({
+    maxActive: z.number().int().min(1).max(2000).default(1950),
+    overflowAutoPrune: z.boolean().default(true),
+    agePrune: z.object({
+      enabled: z.boolean().default(false),
+      days: z.number().int().min(1).max(36500).default(90),
+    }).strict().prefault({ enabled: false, days: 90 }),
+  }).strict().prefault({ maxActive: 1950, overflowAutoPrune: true, agePrune: { enabled: false, days: 90 } }),
   relatedArticles: z.object({
     enabled: z.boolean().default(true),
     maxItems: z.number().int().min(0).max(12).default(4),

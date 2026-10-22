@@ -216,6 +216,39 @@
           }
         }
       }
+    },
+    "redirectManagement": {
+      "type": "object",
+      "description": "Cloudflare Pages 永久轉址容量防呆；1500、1800、1950 各提醒一次，1950 後每新增一條提醒。依建立日期自動淘汰，非以最後存取日期判定。",
+      "additionalProperties": false,
+      "properties": {
+        "maxActive": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000,
+          "description": "最多實際輸出幾條 301；預設 1950，超過按建立日期最舊者淘汰"
+        },
+        "overflowAutoPrune": {
+          "type": "boolean",
+          "description": "超過 maxActive 時自動淘汰最舊的轉址，預設 true；關閉則直接拒絕超限建置"
+        },
+        "agePrune": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "依首次記錄建立日期的天數清理；預設不啟動。不是「XX 天未被訪問」。"
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 36500,
+              "description": "首次記錄後超過幾天清除；預設 90"
+            }
+          }
+        }
+      }
     }
   }
 }

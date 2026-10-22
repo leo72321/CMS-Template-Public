@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "entries": {
+    "/blog/SEO發布檢查/": {
+      "createdAt": "2026-10-23",
+      "sequence": 1,
+      "target": "/website-guides/SEO發布檢查/"
+    },
+    "/網站筆記/SEO發布檢查/": {
+      "createdAt": "2026-10-23",
+      "sequence": 2,
+      "target": "/website-guides/SEO發布檢查/"
+    },
+    "/blog/圖片上傳流程/": {
+      "createdAt": "2026-10-23",
+      "sequence": 3,
+      "target": "/website-guides/圖片上傳流程/"
+    },
+    "/網站筆記/圖片上傳流程/": {
+      "createdAt": "2026-10-23",
+      "sequence": 4,
+      "target": "/website-guides/圖片上傳流程/"
+    },
+    "/blog/新增第一篇文章/": {
+      "createdAt": "2026-10-23",
+      "sequence": 5,
+      "target": "/website-guides/新增第一篇文章/"
+    },
+    "/網站筆記/新增第一篇文章/": {
+      "createdAt": "2026-10-23",
+      "sequence": 6,
+      "target": "/website-guides/新增第一篇文章/"
+    },
+    "/網站筆記/": {
+      "createdAt": "2026-10-23",
+      "sequence": 7,
+      "target": "/blog/"
+    }
+  },
+  "alerts": {
+    "milestones": [],
+    "above1950HighWater": 1950
+  }
+}
