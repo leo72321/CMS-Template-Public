@@ -29,16 +29,15 @@ test('文章永久網址一律 /blog/，改標題或分類不改文章路徑', (
   i.categories[0].slug = '其他分類';
   assert.equal(postPath(p, i.categories), '/blog/第一篇/');
 });
-test('主要分類歸併到 /blog/，舊分類頁與文章網址都 301', () => {
+test('Blog 文章總覽與真正分類分離；歷史誤用的分類路徑永久轉址', () => {
   const i = input([post('a'), post('b')]);
-  const m = build(i, { primaryBlogCategory: '測試' });
-  assert.equal(m.byPath.has('/分類/'), false);
-  assert.equal(m.redirects.get('/分類/'), '/blog/');
-  assert.equal(m.redirects.get('/分類/a/'), '/blog/a/');
-  assert.equal(m.byPath.get('/blog/a/')?.kind, 'post');
+  const m = build(i, { blogLegacyPaths: ['/舊筆記/'] });
+  assert.equal(m.byPath.get('/分類/')?.kind, 'category');
   assert.equal(m.byPath.get('/blog/')?.kind, 'blog');
-  assert.throws(() => build(i, { primaryBlogCategory: '不存在' }), /找不到文章首頁指定分類/);
-  assert.throws(() => build(i, { primaryBlogCategory: '測試', blogIndexable: false }), /blogIndexable|主要分類/);
+  assert.equal(m.redirects.get('/舊筆記/'), '/blog/');
+  assert.equal(m.redirects.get('/舊筆記/a/'), '/blog/a/');
+  assert.equal(m.redirects.get('/分類/a/'), '/blog/a/');
+  assert.throws(() => build(i, { blogLegacyPaths: ['/分類/'] }), /轉址衝突/);
   assert.equal(build(i, { blogIndexable: false }).byPath.get('/blog/')!.noindex, true);
 });
 test('不同分類同名 slug 必須攔截，避免 /blog/ 路徑碰撞', () => {
@@ -121,4 +120,28 @@ test('分類彙整頁改網址，也要留下 301', () => {
   assert.throws(() => checkURLs(build(i), lock), /既有網址/);
   i.categories[0].aliases = ['/分類/'];
   assert.equal(checkURLs(build(i), lock).redirects['/分類/'], '/新分類/');
+});
+
+test('分類仍可獨立索引，Blog 不是分類；推薦依標籤與主題且先去重再限制數量', () => {
+  const i = input([
+    post('a', { tags: ['重點'] }),
+    post('b', { tags: ['重點'] }),
+    post('c', { tags: [] }),
+  ]);
+  const m = build(i, { relatedArticles: { enabled: true, maxItems: 2 } });
+  assert.equal(m.byPath.get('/分類/')?.kind, 'category');
+  assert.equal(m.byPath.get('/blog/')?.kind, 'blog');
+  assert.equal(m.related(i.posts[0]).length, 2);
+  assert.deepEqual(m.related(i.posts[0], 1, new Set(['b'])).map(p => p.data.uid), ['c']);
+  assert.equal(m.related(i.posts[0], 0).length, 0);
+  const alt = build(i, { relatedArticles: { enabled: false, maxItems: 0 } });
+  assert.deepEqual(alt.related(i.posts[0]), []);
+});
+test('新舊分類網址 301 可同時保留，任何分類頁不得誤轉 Blog', () => {
+  const m = build(input([post('a')]), { blogLegacyPaths: ['/舊索引/'] });
+  assert.equal(m.redirects.get('/分類/a/'), '/blog/a/');
+  assert.equal(m.redirects.get('/舊索引/a/'), '/blog/a/');
+  assert.equal(m.redirects.get('/舊索引/'), '/blog/');
+  assert.equal(m.byPath.get('/分類/')?.kind, 'category');
+  assert.equal(m.redirects.has('/分類/'), false);
 });
