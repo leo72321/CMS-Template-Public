@@ -23,5 +23,27 @@
   "relatedArticles": {
     "enabled": true,
     "maxItems": 4
+  },
+  "postFooter": {
+    "tags": true,
+    "author": {
+      "enabled": false,
+      "name": "",
+      "role": "",
+      "bio": "",
+      "photo": "",
+      "page": "",
+      "linkText": "認識作者"
+    },
+    "blocks": [
+      {
+        "id": "example-note",
+        "enabled": false,
+        "title": "自訂文章頁尾區塊",
+        "text": "在這裡填寫所有 POST 共用的補充內容。關閉後設定會保留，之後可以重新啟用。",
+        "href": "/about/",
+        "linkText": "查看介紹頁"
+      }
+    ]
   }
 }

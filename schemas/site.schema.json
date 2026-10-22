@@ -142,6 +142,80 @@
           "description": "每篇文章站內推薦總名額（包含正文已連結的文章），預設 4"
         }
       }
+    },
+    "postFooter": {
+      "type": "object",
+      "description": "全站 POST 頁尾設定：標籤、作者、可個別開關的自訂區塊；延伸閱讀仍由 relatedArticles.enabled 控制。",
+      "additionalProperties": false,
+      "properties": {
+        "tags": {
+          "type": "boolean",
+          "description": "是否在所有 POST 顯示文章標籤"
+        },
+        "author": {
+          "type": "object",
+          "description": "全站作者介紹卡，可關閉顯示；page 指定既有 PAGE 網址。",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "bio": {
+              "type": "string"
+            },
+            "photo": {
+              "type": "string"
+            },
+            "page": {
+              "type": "string",
+              "description": "站內 PAGE 路徑，例如 /about/"
+            },
+            "linkText": {
+              "type": "string"
+            }
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "description": "每個區塊獨立 enabled 開關，停用不會刪除內容；全部 POST 共用。",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "enabled"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string",
+                "description": "站內 PAGE 或外部 HTTPS"
+              },
+              "linkText": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
