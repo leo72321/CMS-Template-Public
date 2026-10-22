@@ -1,0 +1,56 @@
+---
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathFor, type Model, type Post } from '../lib/model';
+import PostList from './PostList.astro';
+import PostFooterCustom from './PostFooterCustom.astro';
+interface Props { model: Model; post: Post; }
+const { model, post } = Astro.props;
+const { postFooter, relatedArticles } = model.site;
+// 每篇 POST 個別計算推薦；正文已出現的站內文章先排除，避免重複。
+const referenced = new Set(model.posts.filter(p => {
+  const canonical = pathFor(p, model.categories);
+  return [canonical, '/blog/' + p.data.slug + '/', ...model.site.blogLegacyPaths.map(base => base + p.data.slug + '/')]
+    .some(path => post.body.includes(path));
+}).map(p => p.data.uid));
+const remaining = Math.max(0, relatedArticles.maxItems - referenced.size);
+const related = relatedArticles.enabled && remaining > 0 ? model.related(post, remaining, referenced) : [];
+const blocks = postFooter.blocks.filter(b => b.enabled && (b.title || b.text || b.href));
+const author = postFooter.author;
+const authorName = author.name || model.site.author;
+const photo = author.photo;
+const photoAvailable = !!photo && (photo.startsWith('https://') || (photo.startsWith('/') && existsSync(join(process.cwd(), 'public', photo.slice(1)))));
+const showTags = postFooter.tags && post.data.tags.length > 0;
+const hasFooter = showTags || author.enabled || blocks.length > 0 || related.length > 0;
+---
+{hasFooter && <div class="post-footer" aria-label="文章下方資訊">
+  {showTags && <nav class="post-footer-tags" aria-label="文章標籤">
+    {post.data.tags.map(id => { const tag = model.tags.find(t => t.id === id)!; return <a href={'/tag/' + tag.slug + '/'}>#{tag.name}</a>; })}
+  </nav>}
+  {author.enabled && <section class="post-footer-author" aria-label="作者介紹">
+    {photoAvailable && <img src={photo} alt={authorName + '照片'} loading="lazy" decoding="async" width="88" height="88" />}
+    <div class="post-footer-author-body">
+      <strong>{authorName}</strong>{author.role && <span class="post-footer-role">・{author.role}</span>}
+      {author.bio && <p>{author.bio}</p>}
+      {author.page && <a class="post-footer-author-link" href={author.page}>{author.linkText} →</a>}
+    </div>
+  </section>}
+  {blocks.map(block => <PostFooterCustom block={block} />)}
+  {related.length > 0 && <section class="post-footer-related" aria-label="延伸閱讀">
+    <h2>延伸閱讀</h2>
+    <PostList posts={related} categories={model.categories} />
+  </section>}
+</div>}
+<style>
+  .post-footer{max-width:100%;margin:34px 0 0}
+  .post-footer>*{margin-top:26px;padding-top:20px;border-top:1px solid #dce2d8}
+  .post-footer-tags{display:flex;flex-wrap:wrap;gap:8px}
+  .post-footer-tags a{border:1px solid #dce2d8;border-radius:99px;padding:4px 11px;font-size:.8rem;text-decoration:none}
+  .post-footer-author{display:flex;align-items:flex-start;gap:18px}
+  .post-footer-author img{flex:0 0 88px;width:88px;height:88px;object-fit:cover;border-radius:8px}
+  .post-footer-author-body{min-width:0}
+  .post-footer-role{font-size:.85rem;color:#667268}
+  .post-footer-author p{font-size:.9rem;line-height:1.75;margin:8px 0}
+  .post-footer-author-link{font-size:.88rem}
+  .post-footer-related h2{font-size:1.27rem;line-height:1.4;margin:0 0 15px}
+</style>
