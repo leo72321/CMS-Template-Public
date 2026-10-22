@@ -59,6 +59,39 @@ export const topicSchema = z.object({
   description: z.string().default(''),
   hub: segment,
 }).strict();
+
+const footerLink = z.string().refine(value => !value ||
+  (/^\/(?:[\p{L}\p{N}_-]+\/)+$/u.test(value)) ||
+  (() => { try { const u = new URL(value); return u.protocol === 'https:' && !u.username && !u.password; } catch { return false; } })(),
+  '自訂連結必須是完整站內路徑（例如 /about/）或 HTTPS 網址。');
+const postFooterSchema = z.object({
+  tags: z.boolean().default(true),
+  author: z.object({
+    enabled: z.boolean().default(false),
+    name: z.string().trim().max(100).default(''),
+    role: z.string().trim().max(100).default(''),
+    bio: z.string().trim().max(600).default(''),
+    photo: z.union([imageURL, z.literal('')]).default(''),
+    page: z.string().refine(v => !v || /^\/(?:[\p{L}\p{N}_-]+\/)+$/u.test(v), '作者連結請填站內 PAGE 路徑，如 /about/。').default(''),
+    linkText: z.string().trim().max(100).default('認識作者'),
+  }).strict().prefault({ enabled: false }),
+  blocks: z.array(z.object({
+    id: segment,
+    enabled: z.boolean().default(false),
+    title: z.string().trim().max(100).default(''),
+    text: z.string().trim().max(1500).default(''),
+    href: footerLink.default(''),
+    linkText: z.string().trim().max(100).default(''),
+  }).strict()).max(20).default([]),
+}).strict().superRefine((footer, ctx) => {
+  const ids = new Set<string>();
+  for (const [i, block] of footer.blocks.entries()) {
+    if (ids.has(block.id)) ctx.addIssue({ code: 'custom', path: ['blocks', i, 'id'], message: '自訂區塊 ID 不可重複。' });
+    ids.add(block.id);
+    if (block.enabled && block.href && !block.linkText) ctx.addIssue({ code: 'custom', path: ['blocks', i, 'linkText'], message: '啟用帶連結的區塊時，請填寫連結文字。' });
+  }
+});
+
 export const siteSchema = z.object({
   $schema: z.string().optional(),
   _說明: z.string().optional(),
@@ -79,6 +112,8 @@ export const siteSchema = z.object({
   // 曾經被拿來當主分類的 Blog 入口；新版只負責 301 歷史轉址，不是分類。
   blogLegacyPaths: z.array(z.string().regex(/^\/[\p{L}\p{N}_-]+\/$/u)).default([]),
   // 建置時計算推薦。正文已有內部連結時會佔用名額，不會重複推薦。
+  // 全站所有 POST 共用的頁尾配置，個別區塊可停用後重新啟用。
+  postFooter: postFooterSchema.prefault({ tags: true, author: { enabled: false }, blocks: [] }),
   relatedArticles: z.object({
     enabled: z.boolean().default(true),
     maxItems: z.number().int().min(0).max(12).default(4),

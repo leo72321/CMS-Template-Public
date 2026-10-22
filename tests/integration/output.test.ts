@@ -1,5 +1,6 @@
 import { test, after } from 'node:test';
 import { encodePath } from '../../src/lib/model';
+import { load } from 'cheerio';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -34,6 +35,17 @@ test('文章標準網址依分類，舊 Blog 和舊分類均永久轉址至唯�
     }
   }
   assert.ok(redirects.includes(`${encodePath('/網站筆記/')} /blog/ 301`), '舊文章總覽入口仍到 /blog/');
+});
+test('所有 POST 只輸出全站啟用的頁尾區塊，不再顯示主題中心或額外服務卡', () => {
+  const cfg = JSON.parse(readFileSync(join(sandbox, 'site.config.json'), 'utf8'));
+  for (const slug of ['SEO發布檢查', '圖片上傳流程', '新增第一篇文章']) {
+    const $ = load(readFileSync(join(sandbox, 'dist', 'website-guides', slug, 'index.html'), 'utf8'));
+    assert.equal($('.topic-link, .sidebar, .notice').length, 0);
+    assert.equal($('.post-footer-author').length, Number(cfg.postFooter.author.enabled));
+    assert.equal($('.post-footer-tags').length, Number(cfg.postFooter.tags));
+    assert.equal($('.post-footer-custom').length, cfg.postFooter.blocks.filter((b: { enabled: boolean; title: string; text: string; href: string }) => b.enabled && (b.title || b.text || b.href)).length);
+    assert.ok($('.post-footer-related').length <= 1);
+  }
 });
 test('故意加入失效連結會被攔下', () => altered(path, s => s.replace('</main>', '<a href="/does-not-exist/">不存在</a></main>'), /失效連結/));
 test('故意放重複 H1 會被攔下', () => altered(path, s => s.replace('</main>', '<h1>重複標題</h1></main>'), /一個 H1/));

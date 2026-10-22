@@ -1,0 +1,18 @@
+---
+import type { Site } from '../lib/schema';
+// 通用 POST 追加區塊：site.config.json > postFooter.blocks 控制各區塊顯示。
+// 想要新的元素或版型，可在此修改 Astro；只會影響所有 POST，不需要逐篇改文章。
+// 不想顯示時將對應 blocks[].enabled 設 false，設定和內容會保留。
+interface Props { block: Site['postFooter']['blocks'][number]; }
+const { block } = Astro.props;
+---
+<section class="post-footer-custom" data-footer-block={block.id} aria-label={block.title || block.id}>
+  {block.title && <h2>{block.title}</h2>}
+  {block.text && <p>{block.text}</p>}
+  {block.href && <a href={block.href}>{block.linkText} →</a>}
+</section>
+<style>
+  .post-footer-custom h2{font-size:1.15rem;margin:0 0 8px}
+  .post-footer-custom p{font-size:.9rem;line-height:1.8;margin:0 0 12px}
+  .post-footer-custom a{font-size:.88rem}
+</style>

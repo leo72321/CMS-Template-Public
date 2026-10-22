@@ -44,3 +44,7 @@ GTM 只提供 ID 入口，不擅自替少爺新增追蹤事件。
 5. 使用功能分支與 PR，標題、說明及驗收結果用繁體中文。不得把本機測試說成 GitHub CI 或正式部署成功。
 
 新站使用獨立倉庫，不連動改舊站。沒有明確要求，不替既有網站搬家或部署。
+
+## POST 共用頁尾與擴充限制
+
+所有 Post 正文後只允許共用 `PostFooter.astro` 輸出：Tag（`postFooter.tags`）、作者介紹（`postFooter.author.enabled`）、獨立開關的自訂區塊（`postFooter.blocks[].enabled`）和推薦（`relatedArticles.enabled`）。停用時不可清空區塊資料。預設不加閱讀提醒、Topic 中心連結、服務諮詢卡片或每篇私有例外；Topic 只用於推薦相關性。新增功能修改 `PostFooterCustom.astro`，由全站開關控制，詳見 `docs/POST頁尾設定.md`。需要複雜呈現時另建 Page，不要讓 POST 變成 Landing Page。

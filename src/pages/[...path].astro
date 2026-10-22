@@ -1,9 +1,10 @@
 ---
 import { getCollection, render } from 'astro:content';
 import { getModel } from '../lib/content';
-import { pathFor, type Route, type Post } from '../lib/model';
+import { type Route, type Post } from '../lib/model';
 import Base from '../layouts/Base.astro';
 import PostList from '../components/PostList.astro';
+import PostFooter from '../components/PostFooter.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 export async function getStaticPaths() {
   const model = await getModel();
@@ -18,24 +19,7 @@ const rendered = entry ? await render(entry) : undefined;
 const Content = rendered?.Content;
 const category = document?.kind === 'post' ? model.categories.find(c => c.id === (document as Post).data.category) : undefined;
 const crumbs = [{ name: '首頁', path: '/' }, ...(category ? [{ name: '全部文章', path: '/blog/' }, { name: category.name, path: `/${category.slug}/` }] : []), { name: route.title, path: route.path }];
-const topic = document ? model.topics.find(t => t.hub === document.data.uid || (document.kind === 'post' && t.id === (document as Post).data.topic)) : undefined;
-const hub = topic ? [...model.pages, ...model.posts].find(d => d.data.uid === topic.hub) : undefined;
 const article = document?.kind === 'post' ? document as Post : undefined;
-// 正文手動內連已經推薦的文章，從頁底候選與名額中扣除。
-const authoredIds = new Set(article ? model.posts.filter(p => {
-  const canonical = pathFor(p, model.categories);
-  const oldBlog = `/blog/${p.data.slug}/`;
-  const oldAliases = model.site.blogLegacyPaths.map(base => `${base}${p.data.slug}/`);
-  return [canonical, oldBlog, ...oldAliases].some(path => article.body.includes(path));
-}).map(p => p.data.uid) : []);
-const remaining = Math.max(0, model.site.relatedArticles.maxItems - authoredIds.size);
-const related = article && model.site.relatedArticles.enabled && remaining > 0
-  ? model.related(article, remaining, authoredIds)
-  : [];
-// 主題中心頁仍能展示文章，但不再輸出沒有上限的幾十張卡片。
-const cluster = topic && !article && model.site.relatedArticles.enabled
-  ? model.posts.filter(p => p.data.topic === topic.id).slice(0, model.site.relatedArticles.maxItems)
-  : [];
 const cover = document?.data.cover;
 const date = document?.kind === 'post' ? (document as Post).data : undefined;
 ---
@@ -44,9 +28,6 @@ const date = document?.kind === 'post' ? (document as Post).data : undefined;
   <header class="page-heading"><p class="eyebrow">{category?.name ?? (document ? '頁面' : '文章索引')}</p><h1>{route.title}</h1><p>{route.description}</p>{date && <div class="meta"><time datetime={date.publishedAt}>發布 {date.publishedAt}</time>{date.updatedAt && <time datetime={date.updatedAt}>更新 {date.updatedAt}</time>}</div>}</header>
   {cover && <img class="cover" src={cover.url} alt={cover.alt} width={cover.width} height={cover.height} loading="eager" fetchpriority="high" decoding="async" srcset={cover.variants.length ? cover.variants.map(v => `${v.url} ${v.width}w`).join(', ') : undefined} sizes="(max-width: 1000px) 100vw, 960px" />}
   {Content && <article class="prose" data-pagefind-body><Content /></article>}
-  {document?.kind === 'post' && (document as Post).data.tags.length > 0 && <nav class="tags" aria-label="文章標籤">{(document as Post).data.tags.map(id => { const tag = model.tags.find(t => t.id === id)!; return <a href={`/tag/${tag.slug}/`}>#{tag.name}</a>; })}</nav>}
-  {hub && hub.data.uid !== document?.data.uid && <aside class="topic-link"><span>繼續閱讀主題指南</span><a href={pathFor(hub, model.categories)}>{hub.data.title} ↗</a></aside>}
-  {cluster.length > 0 && <section class="section"><div class="section-heading"><h2>{topic!.name}・延伸閱讀</h2></div><PostList posts={cluster} categories={model.categories} /></section>}
-  {related.length > 0 && <section class="section"><div class="section-heading"><h2>延伸閱讀</h2></div><PostList posts={related} categories={model.categories} /></section>}
+  {article && <PostFooter model={model} post={article} />}
   {route.posts && <>{route.kind === 'blog' && <nav class="tags" aria-label="文章分類">{model.categories.filter(c => model.posts.some(p => p.data.category === c.id)).map(c => <a href={`/${c.slug}/`}>{c.name}</a>)}</nav>}<PostList posts={route.posts} categories={model.categories} />{!route.posts.length && <p class="empty">內容準備中。</p>}{route.totalPages! > 1 && <nav class="pagination" aria-label="文章分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : `${route.base}page/${route.page! - 1}/`}>← 上一頁</a>}<span>第 {route.page}／{route.totalPages} 頁</span>{route.page! < route.totalPages! && <a rel="next" href={`${route.base}page/${route.page! + 1}/`}>下一頁 →</a>}</nav>}</>}
 </Base>
