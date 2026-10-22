@@ -52,3 +52,7 @@ GTM 只提供 ID 入口，不擅自替少爺新增追蹤事件。
 ## 轉址管理防呆（不可誤刪）
 
 `src/lib/redirect-manager.ts` 負責純函式計算，`content/redirect-ledger.json` 保存建立日期、同日序號、退役 tombstone 及提醒高水位。Cloudflare Pages `_redirects` 最多輸出 `site.config.json.redirectManagement.maxActive`（預設1950）。超額預設自動淘汰最舊 **301**，禁止碰任何正式 POST/PAGE 路由。新增文章或更新路徑後執行 `npm run redirects:sync` 並一併提交檔案；main 推送／選用每日維護由專屬 GitHub Actions 同步。`agePrune.enabled` 預設 false；清理依 createdAt，不是訪客最後存取時間。不可解除 tombstone 或偽造舊轉址建立時間。完整規則見 `docs/轉址容量管理.md`。
+
+## 儲存供應商／CDN 設定精靈
+
+供應商皆共用 S3 Compatible AWS SDK；通過 GitHub Actions **圖床設定精靈** 選擇 provider、Region、Bucket、CDN 完整 HTTPS URL（可有路徑），Akamai／其他需手填 Endpoint。金鑰只放 Github Secrets 或本機 .env，不得填 workflow_dispatch inputs、commit 或 Markdown。正式站保持 B2 Native 直到使用者明確選擇遷移；已有媒體時必須驗證原 Bucket 和 CDN URL 相容。見 docs/S3圖床設定.md。
