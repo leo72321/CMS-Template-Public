@@ -22,10 +22,12 @@ const topic = document ? model.topics.find(t => t.hub === document.data.uid || (
 const hub = topic ? [...model.pages, ...model.posts].find(d => d.data.uid === topic.hub) : undefined;
 const article = document?.kind === 'post' ? document as Post : undefined;
 // 正文手動內連已經推薦的文章，從頁底候選與名額中扣除。
-const authoredSlugs = new Set(article ? [...article.body.matchAll(/\/blog\/([^\/?#)\s"'<>]+)\//g)].map(m => {
-  try { return decodeURIComponent(m[1]); } catch { return m[1]; }
-}) : []);
-const authoredIds = new Set(model.posts.filter(p => authoredSlugs.has(p.data.slug)).map(p => p.data.uid));
+const authoredIds = new Set(article ? model.posts.filter(p => {
+  const canonical = pathFor(p, model.categories);
+  const oldBlog = `/blog/${p.data.slug}/`;
+  const oldAliases = model.site.blogLegacyPaths.map(base => `${base}${p.data.slug}/`);
+  return [canonical, oldBlog, ...oldAliases].some(path => article.body.includes(path));
+}).map(p => p.data.uid) : []);
 const remaining = Math.max(0, model.site.relatedArticles.maxItems - authoredIds.size);
 const related = article && model.site.relatedArticles.enabled && remaining > 0
   ? model.related(article, remaining, authoredIds)

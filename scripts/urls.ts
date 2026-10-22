@@ -14,7 +14,14 @@ export function checkURLs(model: Model, previous: Lock) {
     const redirect = model.redirects.get(oldPath);
     if (!redirect || !model.byPath.has(redirect) || (current[uid] && redirect !== current[uid])) errors.push(`既有網址 ${oldPath}（${uid}）已變更或刪除，請在目標內容的 aliases 加上舊網址。`);
   }
-  for (const from of Object.keys(previous.redirects)) if (!model.redirects.has(from)) errors.push(`既有 301 轉址不可遺失：${from}`);
+  for (const [from, oldTarget] of Object.entries(previous.redirects)) {
+    if (model.redirects.has(from)) continue;
+    // 先前的「分類文章 -> /blog/文章」如今升格為正式路由，不可再輸出反向 301。
+    const previousUid = Object.entries(previous.urls).find(([, url]) => url === oldTarget)?.[0];
+    const route = model.byPath.get(from);
+    if (previousUid && route?.kind === 'post' && route.document?.data.uid === previousUid && current[previousUid] === from) continue;
+    errors.push(`既有 301 轉址不可遺失：${from}`);
+  }
   if (errors.length) throw new Error(errors.join('\n'));
   return { urls: current, redirects: Object.fromEntries(model.redirects) };
 }
