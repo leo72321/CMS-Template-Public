@@ -17,5 +17,11 @@
     "cdnBase": ""
   },
   "blogIndexable": true,
-  "primaryBlogCategory": "網站筆記"
+  "blogLegacyPaths": [
+    "/網站筆記/"
+  ],
+  "relatedArticles": {
+    "enabled": true,
+    "maxItems": 4
+  }
 }

@@ -35,9 +35,8 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
     for (const x of list) { if (seen.has(x.id)) errors.push(`${label} ID 重複：${x.id}`); seen.add(x.id); }
   };
   unique(input.categories, '分類'); unique(input.tags, '標籤'); unique(input.topics, '主題');
-  const primaryBlogCategory = site.primaryBlogCategory ? input.categories.find(c => c.id === site.primaryBlogCategory) : undefined;
-  if (site.primaryBlogCategory && !primaryBlogCategory) errors.push(`找不到文章首頁指定分類：${site.primaryBlogCategory}`);
-  if (primaryBlogCategory && !site.blogIndexable) errors.push('主要分類轉址到 /blog/ 時，必須允許 /blog/ 索引。');
+  const legacyBlogPaths = [...new Set(site.blogLegacyPaths.map(normalizePath))];
+  if (legacyBlogPaths.length !== site.blogLegacyPaths.length) errors.push('blogLegacyPaths 不可重複填寫同一舊網址。');
   const all = [...input.posts, ...input.pages];
   const uids = new Set<string>();
   for (const d of all) {
@@ -71,7 +70,7 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   };
   // 系統入口和全部已設定分類預先保留，避免草稿轉正時才產生衝突。
   for (const name of ['/', '/blog/', '/tag/', '/404/', '/sitemap.xml/', '/robots.txt/', '/_headers/', '/_redirects/']) claim(name, '系統路徑');
-  for (const c of input.categories) if (c !== primaryBlogCategory) claim(`/${c.slug}/`, `分類 ${c.name}`);
+  for (const c of input.categories) claim(`/${c.slug}/`, `分類 ${c.name}`);
   for (const d of all) claim(pathFor(d, input.categories), d.file);
   const add = (route: Route, claimed = false) => {
     if (!claimed) claim(route.path, route.title);
@@ -92,7 +91,6 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   archive('blog', '/blog/', '全部文章', `瀏覽${site.title}的文章與分類。`, posts);
   for (const d of visible) add({ path: pathFor(d, input.categories), title: d.data.title, description: d.data.description, kind: d.kind, document: d, noindex: !canIndex || !eligible(d) }, true);
   for (const category of input.categories) {
-    if (category === primaryBlogCategory) continue;
     const items = posts.filter(p => p.data.category === category.id);
     if (items.length) archive('category', `/${category.slug}/`, category.name, category.description, items, category);
   }
@@ -110,19 +108,21 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
     redirects.set(from, to);
   };
   for (const d of visible) for (const alias of d.data.aliases) redirect(alias, pathFor(d, input.categories));
-  // 舊分類/文章網址自動導向 /blog/文章；新文章則直接取得統一的永久網址。
-  for (const post of posts) {
-    const category = input.categories.find(c => c.id === post.data.category)!;
-    const legacy = `/${category.slug}/${post.data.slug}/`;
-    const canonical = postPath(post, input.categories);
-    if (legacy !== canonical && !post.data.aliases.includes(legacy)) redirect(legacy, canonical);
+  // 真正的分類有自己的列表頁，/blog/ 獨立作為全部文章入口。
+  // 歷史上誤作主分類的路徑，另外保留原本的 301，不可直接遺失。
+  for (const p of posts) {
+    const category = input.categories.find(c => c.id === p.data.category)!;
+    const canonical = postPath(p, input.categories);
+    const legacyBases = new Set([`/${category.slug}/`, ...legacyBlogPaths]);
+    for (const base of legacyBases) {
+      const legacy = `${base}${p.data.slug}/`;
+      if (legacy !== canonical && !p.data.aliases.includes(legacy)) redirect(legacy, canonical);
+    }
   }
-  // 主分類的彙整頁與全文章首頁內容重複，保留舊 URL 301 即可。
-  if (primaryBlogCategory) redirect(`/${primaryBlogCategory.slug}/`, '/blog/');
+  for (const base of legacyBlogPaths) redirect(base, '/blog/');
   for (const taxonomy of [...input.categories, ...input.tags]) {
     const route = routes.find(r => r.taxonomy === taxonomy && r.page === 1);
-    const target = taxonomy === primaryBlogCategory ? '/blog/' : route?.path;
-    if (target) for (const alias of taxonomy.aliases ?? []) redirect(alias, target);
+    if (route) for (const alias of taxonomy.aliases ?? []) redirect(alias, route.path);
   }
   const titles = new Map<string, string>();
   for (const d of visible) {
@@ -132,9 +132,18 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   }
   if (routes.length > 49999) errors.push('目前單一 Sitemap 上限為 49,999 頁，請先拆分 Sitemap 再擴充。');
   if (errors.length) throw new Error(errors.join('\n'));
-  const related = (p: Post, limit = 4) => posts.filter(x => x.data.uid !== p.data.uid).map(x => ({
-    post: x, score: (p.data.topic && x.data.topic === p.data.topic ? 8 : 0) + x.data.tags.filter(t => p.data.tags.includes(t)).length * 3 + (x.data.category === p.data.category ? 1 : 0),
-  })).filter(x => x.score > 0).sort((a, b) => b.score - a.score || b.post.data.publishedAt.localeCompare(a.post.data.publishedAt) || a.post.data.uid.localeCompare(b.post.data.uid)).slice(0, limit).map(x => x.post);
+  const related = (p: Post, limit = site.relatedArticles.maxItems, exclude = new Set<string>()) => posts
+    .filter(x => x.data.uid !== p.data.uid && !exclude.has(x.data.uid))
+    .map(x => ({
+      post: x,
+      score: (p.data.topic && x.data.topic === p.data.topic ? 8 : 0)
+        + x.data.tags.filter(t => p.data.tags.includes(t)).length * 3
+        + (x.data.category === p.data.category ? 1 : 0),
+    }))
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score || b.post.data.publishedAt.localeCompare(a.post.data.publishedAt) || a.post.data.uid.localeCompare(b.post.data.uid))
+    .slice(0, Math.max(0, limit))
+    .map(x => x.post);
   return { ...input, posts, pages, routes, byPath, redirects, canIndex, related, site };
 }
 export type Model = ReturnType<typeof makeModel>;
