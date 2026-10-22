@@ -147,7 +147,7 @@ test('分類仍可獨立索引，Blog 不是分類；推薦依標籤與主題且
 });
 test('新舊分類網址 301 可同時保留，任何分類頁不得誤轉 Blog', () => {
   const m = build(input([post('a')]), { blogLegacyPaths: ['/舊索引/'] });
-  assert.equal(m.redirects.get('/分類/a/'), '/blog/a/');
+  assert.equal(m.redirects.get('/blog/a/'), '/分類/a/');
   assert.equal(m.redirects.get('/舊索引/a/'), '/分類/a/');
   assert.equal(m.redirects.get('/舊索引/'), '/blog/');
   assert.equal(m.byPath.get('/分類/')?.kind, 'category');
