@@ -154,3 +154,26 @@ test('新舊分類網址 301 可同時保留，任何分類頁不得誤轉 Blog'
   assert.equal(m.byPath.get('/分類/a/')?.kind, 'post');
   assert.equal(m.redirects.has('/分類/a/'), false);
 });
+test('POST 頁尾可全站設定：標籤／作者／自訂區塊可獨立關閉且資料保留', () => {
+  const base = { domain: 'unit.example.org', title: '測試站', description: '測試', author: '預設作者', media: { bucket: 'wordpress-cdn' } };
+  const config = siteSchema.parse({ ...base, postFooter: {
+    tags: false,
+    author: { enabled: true, name: '某作者', page: '/about/', linkText: '作者介紹' },
+    blocks: [
+      { id: 'notice', enabled: false, title: '保留不顯示的內容', href: '/about/', linkText: '關於' },
+      { id: 'more', enabled: true, title: '自訂', text: '額外說明' },
+    ],
+  }, relatedArticles: { enabled: false, maxItems: 4 } });
+  assert.equal(config.postFooter.tags, false);
+  assert.equal(config.postFooter.author.page, '/about/');
+  assert.equal(config.postFooter.blocks[0].enabled, false);
+  assert.equal(config.postFooter.blocks[0].title, '保留不顯示的內容');
+  assert.equal(config.relatedArticles.enabled, false);
+  assert.equal(siteSchema.parse(base).postFooter.author.enabled, false);
+  assert.throws(() => siteSchema.parse({ ...base, postFooter: {
+    blocks: [{ id: 'same', enabled: false }, { id: 'same', enabled: true }],
+  } }), /不可重複/);
+  assert.throws(() => siteSchema.parse({ ...base, postFooter: {
+    blocks: [{ id: 'bad', enabled: true, href: 'javascript:alert(1)', linkText: '開啟' }],
+  } }), /自訂連結/);
+});
