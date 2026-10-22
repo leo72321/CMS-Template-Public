@@ -51,7 +51,7 @@ npm run dev
 ## 新增文章
 
 ```bash
-npm run content:new -- --type post --uid 我的第一篇 --title "我的第一篇文章" --slug 我的第一篇 --category 網站筆記
+npm run content:new -- --type post --uid 我的第一篇 --title "我的第一篇文章" --slug 我的第一篇 --category 網站教學
 ```
 
 `uid` 是永久內容識別碼，`slug` 是固定網址名稱，`category` 是分類 ID。新文章預設草稿，完成後將 `draft` 改為 `false`，再執行：
@@ -71,11 +71,11 @@ npm run media:verify
 | 首頁 | `/` |
 | Post 文章 | `/blog/{文章網址}/` |
 | Page 獨立頁面 | `/{頁面網址}/` |
-| 分類彙整 | `/{分類網址}/`（主要分類會 301 轉址到 `/blog/`） |
+| 分類彙整 | `/{分類網址}/`（各分類有獨立彙整頁） |
 | 標籤彙整 | `/tag/{標籤網址}/` |
 | 全部文章列表 | `/blog/` |
 
-`/blog/` 是文章總覽，也是文章永久網址的共同前綴。分類和標籤僅用來整理內容，不影響文章網址；舊分類文章網址自動 301 轉址。`site.config.json` 的 `primaryBlogCategory` 可指定主要分類，避免其彙整頁與 `/blog/` 重複。可以使用中文網址。
+`/blog/` 是全部文章總覽，也是文章永久網址的共同前綴。`Category` 是獨立的內容分類，各分類可以擁有自己的 `/{分類網址}/` 彙整頁，不與 Blog 混用。分類和標籤不影響文章網址；舊分類文章網址仍保留 301。`site.config.json` 的 `blogLegacyPaths` 保護舊入口；`relatedArticles.maxItems` 控制每篇文章延伸閱讀總名額（含正文手動內連），預設 4、最多 12。可以使用中文網址。
 
 ## 自動處理的功能
 
