@@ -18,11 +18,11 @@ export const normalizePath = (path: string) => {
   }
   return decoded === '/' ? '/' : `${decoded.replace(/\/+$/, '')}/`;
 };
-// 所有文章固定 /blog/{slug}/，分類僅作內容分組，不介入永久網址。
+// 文章固定 /{分類 slug}/{文章 slug}/；/blog/ 僅作全部文章總覽。
 export const postPath = (p: Post, categories: Taxonomy[]) => {
   const category = categories.find(c => c.id === p.data.category);
   if (!category) throw new Error(`${p.file}：分類 ${p.data.category} 不存在。`);
-  return `/blog/${p.data.slug}/`;
+  return `/${category.slug}/${p.data.slug}/`;
 };
 export const pathFor = (d: Document, categories: Taxonomy[]) => d.kind === 'post' ? postPath(d as Post, categories) : `/${d.data.slug}/`;
 export const todayTaipei = (now = new Date()) => new Intl.DateTimeFormat('en-CA', {
@@ -111,9 +111,8 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   // 真正的分類有自己的列表頁，/blog/ 獨立作為全部文章入口。
   // 歷史上誤作主分類的路徑，另外保留原本的 301，不可直接遺失。
   for (const p of posts) {
-    const category = input.categories.find(c => c.id === p.data.category)!;
     const canonical = postPath(p, input.categories);
-    const legacyBases = new Set([`/${category.slug}/`, ...legacyBlogPaths]);
+    const legacyBases = new Set(['/blog/', ...legacyBlogPaths]);
     for (const base of legacyBases) {
       const legacy = `${base}${p.data.slug}/`;
       if (legacy !== canonical && !p.data.aliases.includes(legacy)) redirect(legacy, canonical);
