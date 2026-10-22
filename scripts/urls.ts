@@ -3,7 +3,7 @@ import { pathFor, type Model } from '../src/lib/model';
 import { readModel, run } from './lib/content';
 import { basename } from 'node:path';
 type Lock = { urls: Record<string, string>; redirects: Record<string, string> };
-export function checkURLs(model: Model, previous: Lock) {
+export function checkURLs(model: Model, previous: Lock, retired = new Set<string>()) {
   const current = Object.fromEntries([
     ...[...model.posts, ...model.pages].map(d => [d.data.uid, pathFor(d, model.categories)]),
     ...model.routes.filter(r => r.taxonomy && r.page === 1).map(r => [`${r.kind}:${r.taxonomy!.id}`, r.path]),
@@ -12,10 +12,10 @@ export function checkURLs(model: Model, previous: Lock) {
   for (const [uid, oldPath] of Object.entries(previous.urls)) {
     if (current[uid] === oldPath) continue;
     const redirect = model.redirects.get(oldPath);
-    if (!redirect || !model.byPath.has(redirect) || (current[uid] && redirect !== current[uid])) errors.push(`既有網址 ${oldPath}（${uid}）已變更或刪除，請在目標內容的 aliases 加上舊網址。`);
+    if ((!redirect || !model.byPath.has(redirect) || (current[uid] && redirect !== current[uid])) && !retired.has(oldPath)) errors.push(`既有網址 ${oldPath}（${uid}）已變更或刪除，請在目標內容的 aliases 加上舊網址。`);
   }
   for (const [from, oldTarget] of Object.entries(previous.redirects)) {
-    if (model.redirects.has(from)) continue;
+    if (model.redirects.has(from) || retired.has(from)) continue;
     // 先前的「分類文章 -> /blog/文章」如今升格為正式路由，不可再輸出反向 301。
     const previousUid = Object.entries(previous.urls).find(([, url]) => url === oldTarget)?.[0];
     const route = model.byPath.get(from);
@@ -28,7 +28,8 @@ export function checkURLs(model: Model, previous: Lock) {
 export function verifyURLLock(model = readModel(), root = process.cwd()) {
   const path = `${root}/content/url-lock.json`;
   const previous = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) as Lock : { urls: {}, redirects: {} };
-  return checkURLs(model, previous);
+  const retired = new Set(Object.entries(model.redirectState.history.entries).filter(([, record]) => !!record.retiredAt).map(([from]) => from));
+  return checkURLs(model, previous, retired);
 }
 if (basename(process.argv[1] ?? '') === 'urls.ts') run(() => {
   const next = verifyURLLock();
