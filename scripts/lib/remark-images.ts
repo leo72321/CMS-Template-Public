@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { loadMediaIndex } from './media-index';
 import sharp from 'sharp';
 import { join } from 'node:path';
 import type { Root, RootContent } from 'mdast';
@@ -6,11 +6,11 @@ type Node = Root | RootContent;
 // 建置時加入內文圖片尺寸，不需訪客端 JavaScript，也不在 CI 下載遠端圖片。
 export function mediaImages() {
   return async (tree: Node) => {
-    const manifest = JSON.parse(readFileSync('content/media/manifest.json', 'utf8')) as { uploads: { url: string; width: number; height: number; variants?: { url: string; width: number }[] }[] };
+    const { byUrl } = loadMediaIndex();
     const visit = async (node: Node): Promise<void> => {
       if (node.type === 'image' && node.url) {
         if (!node.alt?.trim()) throw new Error(`圖片缺少 alt（替代文字）：${node.url}`);
-        let image = manifest.uploads.find(i => i.url === node.url);
+        let image: { url: string; width: number; height: number; variants?: { url: string; width: number }[] } | undefined = byUrl.get(node.url);
         if (!image && node.url.startsWith('/') && !node.url.startsWith('//') && !node.url.includes('..')) {
           const meta = await sharp(join(process.cwd(), 'public', decodeURIComponent(node.url))).metadata();
           image = { url: node.url, width: meta.width!, height: meta.height! };

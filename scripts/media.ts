@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { loadMediaIndex, type MediaEntry } from './lib/media-index';
 import matter from 'gray-matter';
 import { readInput, run } from './lib/content';
 import { loadSite } from '../src/lib/settings';
@@ -48,11 +49,13 @@ run(async () => {
   const main = variants.at(-1)!;
   if (values.cover) parsed.data.cover = { url: main.url, alt: values.alt, width: main.width, height: main.height, variants: variants.map(i => ({ url: i.url, width: i.width })), ogUrl: items.find(i => i.contentType === 'image/jpeg')!.url };
   else parsed.content = parsed.content.replace(marker, `![${values.alt.replace(/[\[\]\n]/g, '')}](${main.url})`);
-  const manifest = JSON.parse(readFileSync('content/media/manifest.json', 'utf8')) as { uploads: (Receipt & { variants?: { url: string; width: number }[] })[] };
+  // 先建立 Map，一次更新數筆縮圖，不必為每個 Receipt 線性掃描整份 manifest。
+  const stored = loadMediaIndex();
+  const records = new Map<string, MediaEntry>(stored.byUrl);
   for (const receipt of receipts) {
-    manifest.uploads = manifest.uploads.filter(r => r.url !== receipt.url);
-    manifest.uploads.push({ ...receipt, ...(receipt.url === main.url ? { variants: variants.map(i => ({ url: i.url, width: i.width })) } : {}) });
+    records.set(receipt.url, { ...receipt, ...(receipt.url === main.url ? { variants: variants.map(i => ({ url: i.url, width: i.width })) } : {}) });
   }
+  const manifest = { ...stored.manifest, uploads: [...records.values()] };
   // 只有全部圖片通過 B2 校驗及 CDN 讀取測試，才改寫本機檔案。
   if (readFileSync(doc.file, 'utf8') !== original) throw new Error('上傳期間文章已被其他程序修改，請重新執行；這次未覆寫文章。');
   writeFileSync('content/media/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
