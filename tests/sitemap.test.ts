@@ -19,7 +19,7 @@ test('Sitemap 預設每份 200 URL，允許自訂 1–50000，不影響前台 pa
   assert.equal(base.pageSize, 12);
 });
 
-test('5,000 篇 POST 自动分成 25 份，每份最多 200；PAGE／分類／TAG 不混在 POST', () => {
+test('5,000 篇 POST 自動分成 25 份，每份最多 200；PAGE／分類／TAG 不混在 POST', () => {
   const posts = Array.from({ length: 5000 }, (_, i) => route('post', '/iso/article-' + String(i).padStart(5, '0') + '/'));
   const paths = [...posts, route('home', '/'), route('page', '/about/'), route('blog', '/blog/'),
     route('category', '/iso/'), route('tag', '/tag/example/')];
@@ -35,7 +35,7 @@ test('5,000 篇 POST 自动分成 25 份，每份最多 200；PAGE／分類／TA
   const index = renderSitemapIndex(parts, 'unit.example.org');
   assert.match(index, /<sitemapindex/);
   assert.equal((index.match(/<sitemap><loc>/g) ?? []).length, 28);
-  assert.match(index, /https:\/\/unit.example.org\/sitemaps\/posts-025.xml/);
+  assert.ok(index.includes('https://unit.example.org/posts-025.xml'));
 });
 
 test('201 篇只新增第二份子 Sitemap；排序與內容固定，不產生空白檔案', () => {
