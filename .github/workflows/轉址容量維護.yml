@@ -1,0 +1,85 @@
+name: 301 轉址容量維護
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'content/posts/**'
+      - 'content/pages/**'
+      - 'content/categories/**'
+      - 'content/tags/**'
+      - 'content/topics/**'
+      - 'content/url-lock.json'
+      - 'content/redirect-ledger.json'
+      - 'site.config.json'
+  schedule:
+    # 每日（台灣約凌晨 02:19）只在 agePrune.enabled=true 時進行日期淘汰。
+    - cron: '19 18 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: redirect-maintenance-main
+  cancel-in-progress: false
+jobs:
+  maintain:
+    name: 同步轉址歷史、容量提醒與安全淘汰
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取得 main 最新網站程式
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: 忽略預設關閉的每日日期清理
+        id: gate
+        shell: bash
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && ! node -e "process.exit(require('./site.config.json').redirectManagement?.agePrune?.enabled ? 0 : 1)"; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "日期清理未啟用，跳過本次排程。" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: 安裝 Node.js
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 安裝依賴
+        if: steps.gate.outputs.run == 'true'
+        run: npm ci
+      - name: 同步來源、網址鎖與退役紀錄
+        if: steps.gate.outputs.run == 'true'
+        run: npm run redirects:sync
+      - name: 確認同步結果可通過轉址驗收
+        if: steps.gate.outputs.run == 'true'
+        run: npm run urls:check
+      - name: 保存轉址警示報表
+        if: steps.gate.outputs.run == 'true'
+        run: cat .reports/REDIRECT_MAINTENANCE.md >> "$GITHUB_STEP_SUMMARY"
+      - name: 永久保存建立日期、已退役規則與已發提醒（禁止強制推送）
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          git add content/redirect-ledger.json content/url-lock.json
+          if git diff --cached --quiet; then
+            echo "301 轉址紀錄沒有變動。"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore(redirects): sync 301 ledger and retirement tombstones [skip ci]"
+            git push origin HEAD:main
+          fi
+      - name: 發出本次新增的容量通知（GitHub Issues）
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [ -s .reports/REDIRECT_ISSUE.md ]; then
+            COUNT=$(node -p "JSON.parse(require('node:fs').readFileSync('.reports/REDIRECT_MAINTENANCE.json','utf8')).rawCandidates")
+            gh issue create --title "CMS 301 轉址容量提醒：候選 ${COUNT} 條" --body-file .reports/REDIRECT_ISSUE.md || echo "::warning::GitHub Issue 建立失敗；請查看本次 Actions 摘要中的轉址提醒。"
+          else
+            echo "沒有本次新增的容量或退役通知。"
+          fi
