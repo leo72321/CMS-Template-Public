@@ -9,7 +9,7 @@ run(() => {
   const site = loadSite();
   const used = collectUsedMedia([...input.posts, ...input.pages], byUrl);
   // 有些圖片沒有寫在 Markdown，但仍被全站設定或 SEO 分享圖引用。
-  for (const url of [site.defaultOgImage, site.postFooter.author.photo]) {
+  for (const url of [(site as typeof site & { defaultOgImage?: string }).defaultOgImage, site.postFooter.author.photo]) {
     if (url?.startsWith('https://')) used.add(url);
   }
   const unused = manifest.uploads.filter(item => !used.has(item.url));
