@@ -117,3 +117,7 @@ npm run media:verify
 ## 5,000 頁媒體成本優化
 
 內文圖片保持一行 Markdown URL，封面另存 YAML；`content/media/manifest.json` 是雜湊與尺寸收據，實體圖片由 B2／S3 保存。一般 CI 只下載變更媒體，完整／輪替 CDN 巡檢可獨立執行。`npm run media:orphans` 產出候選報表但絕不自動刪除遠端檔案。詳見 [圖片操作](docs/圖片操作.md)。
+
+## 大型網站 Sitemap（SEO）
+
+自動生成 `/sitemap.xml` 總索引，將 POST、PAGE、分類、TAG 分開成靜態子 Sitemap（與總索引放在網站根目錄，避免搜尋引擎的路徑範圍限制）；每份預設最多 **200 個 URL**，可在 `site.config.json` 的 `sitemap.maxUrls` 自訂。GSC 只需提交 `/sitemap.xml`；完整設定與 noindex 行為見 [設定說明](docs/設定說明.md)。

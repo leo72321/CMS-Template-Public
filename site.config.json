@@ -53,5 +53,8 @@
       "enabled": false,
       "days": 90
     }
+  },
+  "sitemap": {
+    "maxUrls": 200
   }
 }

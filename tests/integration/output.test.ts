@@ -53,6 +53,12 @@ test('故意放重複 H1 會被攔下', () => altered(path, s => s.replace('</ma
 test('故意改錯 Canonical 會被攔下', () => altered(path, s => s.replace(/rel="canonical" href="[^"]+"/, 'rel="canonical" href="https://wrong.example/"'), /Canonical/));
 test('故意反轉索引設定會被攔下', () => altered(path, s => s.replace(/name="robots" content="(noindex|index), follow"/, (_, mode) => `name="robots" content="${mode === 'index' ? 'noindex' : 'index'}, follow"`), /索引設定/));
 test('故意將不收錄頁塞進 Sitemap 會被攔下', () => altered(join(sandbox, 'dist/sitemap.xml'), s => s.replace('</urlset>', '<url><loc>https://wrong.example/should-not-exist/</loc></url></urlset>'), /Sitemap/));
+test('公版預設 noindex，根 Sitemap 必須是空的，不能讓草稿或測試文章暴露到 Sitemap Index', () => {
+  const sitemap = readFileSync(join(sandbox, 'dist/sitemap.xml'), 'utf8');
+  assert.match(sitemap, /<urlset/);
+  assert.doesNotMatch(sitemap, /<sitemap><loc>/);
+  assert.doesNotMatch(sitemap, /<url><loc>/);
+});
 test('故意加入前端程式會被攔下', () => altered(path, s => s.replace('</body>', '<script>console.log(1)</script></body>'), /前端 JavaScript/));
 test('故意放缺少尺寸的圖片會被攔下', () => altered(path, s => s.replace('</main>', '<img src="/missing.webp" alt="測試"></main>'), /圖片缺少/));
 test('故意切斷文章索引的全部連入，會判為孤兒頁', () => {

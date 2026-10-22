@@ -4,6 +4,7 @@ import { gzipSync } from 'node:zlib';
 import { load } from 'cheerio';
 import { readModel, files, run } from './lib/content';
 import { normalizePath, encodePath } from '../src/lib/model';
+import { buildSitemapParts, renderSitemapIndex, renderSitemapPart } from '../src/lib/sitemap';
 run(() => {
   const model = readModel();
   const errors: string[] = [], warnings: string[] = [];
@@ -74,10 +75,48 @@ run(() => {
   const queue = ['/'];
   for (let i = 0; i < queue.length; i++) for (const target of edges.get(queue[i]) ?? []) if (!reachable.has(target)) { reachable.add(target); queue.push(target); }
   for (const route of model.routes) if (!reachable.has(route.path)) errors.push(`孤兒頁：從首頁的連結無法走到 ${route.path}`);
-  const sitemap = load(readFileSync('dist/sitemap.xml', 'utf8'), { xmlMode: true });
-  const actualURLs = sitemap('loc').toArray().map(e => sitemap(e).text());
-  const expectedURLs = model.routes.filter(r => !r.noindex).map(r => `https://${model.site.domain}${encodePath(r.path)}`);
-  if (new Set(actualURLs).size !== actualURLs.length || actualURLs.length !== expectedURLs.length || expectedURLs.some(u => !actualURLs.includes(u))) errors.push('Sitemap（網站地圖）與實際可索引頁面不一致。');
+  // Sitemap 由一份 sitemap.xml 索引與 POST／PAGE／分類／TAG 靜態 XML 組成。
+  // 必須核對每一份子檔、數量、最後更新日期及公開索引資格，不能只查總索引。
+  const sitemapParts = buildSitemapParts(model.routes, model.site.sitemap.maxUrls);
+  const expectedSitemapIndex = renderSitemapIndex(sitemapParts, model.site.domain);
+  const actualSitemapIndex = readFileSync('dist/sitemap.xml', 'utf8');
+  if (actualSitemapIndex !== expectedSitemapIndex) {
+    errors.push('Sitemap Index（網站地圖總索引）與實際可索引頁面不一致。');
+  }
+  // 所有子 Sitemap 必須放網站根目錄，避免 Google 在非 GSC 提交情境限制子目錄覆蓋範圍。
+  const sitemapsDir = 'dist';
+  const expectedFileNames = new Set(sitemapParts.map(p => p.filename));
+  const actualFileNames = files(sitemapsDir)
+    .map(file => relative(sitemapsDir, file).split(sep).join('/'))
+    .filter(name => /^(?:posts|pages|categories|tags)-[0-9]{3,}\.xml$/.test(name));
+  if (actualFileNames.length !== expectedFileNames.size ||
+      actualFileNames.some(name => !expectedFileNames.has(name))) {
+    errors.push('Sitemap 子檔案缺少、過期或輸出多餘 XML。');
+  }
+  const actualURLs: string[] = [];
+  for (const part of sitemapParts) {
+    const path = join(sitemapsDir, part.filename);
+    if (!existsSync(path)) { errors.push('Sitemap 子檔案不存在：' + part.filename); continue; }
+    const raw = readFileSync(path, 'utf8');
+    if (raw !== renderSitemapPart(part, model.site.domain)) {
+      errors.push('Sitemap 子檔案內容、網址、lastmod 或容量不正確：' + part.filename);
+    }
+    const $xml = load(raw, { xmlMode: true });
+    const urls = $xml('urlset > url > loc').toArray().map(node => $xml(node).text());
+    if (urls.length > model.site.sitemap.maxUrls) errors.push('Sitemap 單檔超過設定筆數：' + part.filename);
+    if (Buffer.byteLength(raw, 'utf8') > 50 * 1024 * 1024) errors.push('Sitemap 單檔超過 50 MiB：' + part.filename);
+    actualURLs.push(...urls);
+  }
+  const expectedURLs = model.routes.filter(r => !r.noindex).map(r => 'https://' + model.site.domain + encodePath(r.path));
+  const actualURLSet = new Set(actualURLs);
+  if (actualURLSet.size !== actualURLs.length ||
+      actualURLs.length !== expectedURLs.length ||
+      expectedURLs.some(url => !actualURLSet.has(url))) {
+    errors.push('Sitemap（網站地圖）與實際可索引頁面不一致、重複或漏列。');
+  }
+  if (!readFileSync('dist/robots.txt', 'utf8').includes('Sitemap: https://' + model.site.domain + '/sitemap.xml')) {
+    errors.push('robots.txt 未指向 Sitemap Index。');
+  }
   if (!model.canIndex && !readFileSync('dist/_headers', 'utf8').includes('X-Robots-Tag: noindex')) errors.push('預覽／未開放收錄的網站缺少 HTTP 索引限制。');
   const cssBytes = files('dist').filter(f => f.endsWith('.css')).reduce((n, f) => n + statSync(f).size, 0);
   const jsBytes = files('dist').filter(f => f.endsWith('.js')).reduce((n, f) => n + statSync(f).size, 0);
