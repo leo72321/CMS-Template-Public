@@ -76,7 +76,13 @@ export const siteSchema = z.object({
   pageSize: z.number().int().min(1).max(50).default(12),
   minArchiveItems: z.number().int().min(2).default(2),
   blogIndexable: z.boolean().default(true),
-  primaryBlogCategory: segment.optional(),
+  // 曾經被拿來當主分類的 Blog 入口；新版只負責 301 歷史轉址，不是分類。
+  blogLegacyPaths: z.array(z.string().regex(/^\/[\p{L}\p{N}_-]+\/$/u)).default([]),
+  // 建置時計算推薦。正文已有內部連結時會佔用名額，不會重複推薦。
+  relatedArticles: z.object({
+    enabled: z.boolean().default(true),
+    maxItems: z.number().int().min(0).max(12).default(4),
+  }).strict().default({ enabled: true, maxItems: 4 }),
   storage: z.object({
     provider: z.enum(['b2', 'r2', 'aws-s3', 'other-s3']),
     endpoint: z.string().refine((value) => {

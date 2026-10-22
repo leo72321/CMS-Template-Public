@@ -12,7 +12,7 @@ run(() => {
     '> 由真實內容自動產生。請執行 `npm run docs:update` 更新，不要直接改這份表。', '',
     `網站：**${model.site.title}**　正式網域：\`${model.site.domain}\``, '',
     `目前有 **${model.posts.length} 篇公開文章**、**${model.pages.length} 個公開獨立頁面**、**${model.routes.length} 個網站網址**。`, '',
-    '文章固定使用「／blog／文章網址／」；分類只用於內容整理，舊「／分類／文章網址／」自動 301 轉址；獨立頁面使用「／頁面網址／」。範例一律不開放索引。', '',
+    '文章固定使用「／blog／文章網址／」，Blog 是全部文章列表、Category 是真正分類；舊「／網站筆記／文章網址／」保留 301 轉址，分類頁獨立輸出。獨立頁面使用「／頁面網址／」。範例一律不開放索引。', '',
     '## 網址與原始檔案', '', '| 網址 | 類型 | 標題 | 內容位置 | 個別索引限制 |', '| --- | --- | --- | --- | --- |',
     ...model.routes.map(r => `| [${cell(r.path)}](https://${model.site.domain}${r.path}) | ${{ home: '首頁', blog: '文章索引', post: '文章', page: '獨立頁面', category: '分類', tag: '標籤' }[r.kind]} | ${cell(r.title)} | ${r.document ? link(r.document.file) : '自動產生'} | ${r.document?.data.sample ? '範例：不收錄' : r.document?.data.noindex ? '指定不收錄' : r.kind === 'tag' || r.kind === 'category' ? '依分類／標籤設定及篇數判斷' : (r.page ?? 1) > 1 ? '分頁：不收錄' : '另受整站與預覽環境設定控制'} |`),
     '', '## 草稿與預約文章', '', '| 標題 | 網址 | 狀態 | 內容位置 |', '| --- | --- | --- | --- |',

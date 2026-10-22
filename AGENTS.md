@@ -8,7 +8,7 @@
 
 ## 內容約定
 
-- Post 網址固定 `/blog/{post.slug}/`；分類不介入永久網址。Page 固定 `/{page.slug}/`。主要分類彙整頁依 `primaryBlogCategory` 301 到 `/blog/`。
+- Post 網址固定 `/blog/{post.slug}/`；分類不介入永久網址。Page 固定 `/{page.slug}/`。Blog 與 Category 必須獨立，真分類有獨立彙整頁；歷史誤用的舊入口透過 `blogLegacyPaths` 301 到 `/blog/`，文章標準網址不隨分類更動。
 - `uid` 是永久識別碼。改標題不准順手改 `uid` 或 `slug`。
 - 修改已公開文章 slug、分類或刪文前，檢查 `content/url-lock.json`；需要移動的舊網址必須用 `aliases` 保留轉址。既有轉址永久保留，不建立轉址鏈。舊分類文章網址會自動 301 到 `/blog/文章/`。
 - `draft: true` 及未到台灣發布日的文章不輸出。正文從 `##` 開始，頁面只有一個 H1。

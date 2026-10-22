@@ -90,10 +90,6 @@
       "type": "boolean",
       "description": "是否允許 /blog/ 文章總覽被搜尋引擎收錄（仍受全站開關限制）"
     },
-    "primaryBlogCategory": {
-      "type": "string",
-      "description": "主要文章分類 ID；它的分類彙整頁改成 301 轉至 /blog/，避免兩個相同的文章總覽"
-    },
     "storage": {
       "type": "object",
       "additionalProperties": false,
@@ -118,6 +114,32 @@
         },
         "region": {
           "type": "string"
+        }
+      }
+    },
+    "blogLegacyPaths": {
+      "type": "array",
+      "description": "舊文章分類誤作 Blog 入口的歷史網址（僅保留 301，例如 /insights/），不影響真正分類；不須改文章 canonical",
+      "items": {
+        "type": "string",
+        "pattern": "^/[^/?# ]+/$"
+      },
+      "uniqueItems": true
+    },
+    "relatedArticles": {
+      "type": "object",
+      "description": "文章底部自動推薦。計算時扣除正文已連結的文章，最多 12 篇",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "是否顯示文章底部自動延伸閱讀"
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 12,
+          "description": "每篇文章站內推薦總名額（包含正文已連結的文章），預設 4"
         }
       }
     }
