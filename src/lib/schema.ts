@@ -74,7 +74,7 @@ const postFooterSchema = z.object({
     photo: z.union([imageURL, z.literal('')]).default(''),
     page: z.string().refine(v => !v || /^\/(?:[\p{L}\p{N}_-]+\/)+$/u.test(v), '作者連結請填站內 PAGE 路徑，如 /about/。').default(''),
     linkText: z.string().trim().max(100).default('認識作者'),
-  }).strict().default({ enabled: false }),
+  }).strict().prefault({ enabled: false }),
   blocks: z.array(z.object({
     id: segment,
     enabled: z.boolean().default(false),
@@ -113,7 +113,7 @@ export const siteSchema = z.object({
   blogLegacyPaths: z.array(z.string().regex(/^\/[\p{L}\p{N}_-]+\/$/u)).default([]),
   // 建置時計算推薦。正文已有內部連結時會佔用名額，不會重複推薦。
   // 全站所有 POST 共用的頁尾配置，個別區塊可停用後重新啟用。
-  postFooter: postFooterSchema.default({ tags: true, author: { enabled: false }, blocks: [] }),
+  postFooter: postFooterSchema.prefault({ tags: true, author: { enabled: false }, blocks: [] }),
   relatedArticles: z.object({
     enabled: z.boolean().default(true),
     maxItems: z.number().int().min(0).max(12).default(4),
