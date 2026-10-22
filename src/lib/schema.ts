@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeCdnPrefix, normalizeHttpsEndpoint, storageProviderIds } from './storage-providers';
 z.config(z.locales.zhTW());
 
 // uid 是永久內容識別碼；slug 是網址名稱。標題改字不會自動變更網址。
@@ -130,15 +131,10 @@ export const siteSchema = z.object({
     maxItems: z.number().int().min(0).max(12).default(4),
   }).strict().default({ enabled: true, maxItems: 4 }),
   storage: z.object({
-    provider: z.enum(['b2', 'r2', 'aws-s3', 'other-s3']),
-    endpoint: z.string().refine((value) => {
-      try {
-        const url = new URL(value);
-        return url.protocol === 'https:' && !url.username && !url.password &&
-          !url.search && !url.hash && url.pathname === '/' &&
-          url.hostname.includes('.') && url.hostname !== 'localhost';
-      } catch { return false; }
-    }, 'S3 端點必須為 HTTPS 根網址，不得帶帳密、查詢參數或路徑。'),
+    provider: z.enum(storageProviderIds),
+    endpoint: z.string().refine(value => {
+      try { normalizeHttpsEndpoint(value); return true; } catch { return false; }
+    }, 'S3 端點必須為公開 HTTPS 根網址，不得帶帳密、查詢參數或路徑。'),
     region: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
   }).strict().optional(),
   media: z.object({
@@ -149,6 +145,9 @@ export const siteSchema = z.object({
 }).strict().superRefine((site, ctx) => {
   if (site.storage && !site.media.cdnBase) {
     ctx.addIssue({ code: 'custom', path: ['media', 'cdnBase'], message: '使用 S3 儲存時必須設定圖片 CDN 網址。' });
+  } else if (site.storage) {
+    try { normalizeCdnPrefix(site.media.cdnBase); }
+    catch { ctx.addIssue({ code: 'custom', path: ['media', 'cdnBase'], message: 'CDN URL 必須是安全的公開 HTTPS 前綴，可以包含 /file/儲存桶/ 路徑。' }); }
   }
 });
 export type Site = z.infer<typeof siteSchema>;
