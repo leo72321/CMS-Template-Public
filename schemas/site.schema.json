@@ -249,6 +249,19 @@
           }
         }
       }
+    },
+    "sitemap": {
+      "type": "object",
+      "description": "XML Sitemap 總索引與分類自動分片；預設每份 200 個 URL，可自行調整。每份法定上限 50,000 URL／50 MiB。",
+      "additionalProperties": false,
+      "properties": {
+        "maxUrls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50000,
+          "description": "每份 XML Sitemap 最多包含的 URL 數；預設 200。不影響前台文章分頁 pageSize。"
+        }
+      }
     }
   }
 }

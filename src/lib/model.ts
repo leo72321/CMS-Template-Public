@@ -130,7 +130,7 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
     if (titles.has(title)) errors.push(`標題重複：${d.data.title}（${titles.get(title)}、${d.file}）`);
     titles.set(title, d.file);
   }
-  if (routes.length > 49999) errors.push('目前單一 Sitemap 上限為 49,999 頁，請先拆分 Sitemap 再擴充。');
+  // XML Sitemap 已依種類自動分片，不再以單檔 49,999 URL 限制整站頁數。
   if (errors.length) throw new Error(errors.join('\n'));
   const related = (p: Post, limit = site.relatedArticles.maxItems, exclude = new Set<string>()) => posts
     .filter(x => x.data.uid !== p.data.uid && !exclude.has(x.data.uid))

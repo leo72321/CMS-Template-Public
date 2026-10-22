@@ -107,6 +107,8 @@ export const siteSchema = z.object({
   productionBranch: z.string().default('main'),
   gtmId: z.string().regex(/^(GTM-[A-Z0-9]+)?$/).default(''),
   pageSize: z.number().int().min(1).max(50).default(12),
+  // Google XML Sitemap：POST／PAGE／分類／TAG 各自分片。200 參照 Rank Math 的易管理預設，不是 Google 的必要上限。
+  sitemap: z.object({ maxUrls: z.number().int().min(1).max(50000).default(200) }).strict().prefault({ maxUrls: 200 }),
   minArchiveItems: z.number().int().min(2).default(2),
   blogIndexable: z.boolean().default(true),
   // 曾經被拿來當主分類的 Blog 入口；新版只負責 301 歷史轉址，不是分類。
