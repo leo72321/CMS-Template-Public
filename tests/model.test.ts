@@ -20,14 +20,22 @@ test('拒絕穿越、百分比和不合法的日期', () => {
   assert.throws(() => post('a', { updatedAt: '2025-01-01' }));
   assert.throws(() => normalizePath('/%2e%2e/secret/'));
 });
-test('文章永久網址一律 /blog/，改標題或分類不改文章路徑', () => {
+test('文章使用分類／slug 永久網址，舊 /blog/文章 一律 301', () => {
   const p = post('第一篇', { title: '改過的標題' });
   const i = input([p]);
-  assert.equal(postPath(p, i.categories), '/blog/第一篇/');
-  assert.equal(build(i).routes.find(r => r.kind === 'post')!.path, '/blog/第一篇/');
-  assert.equal(build(i).redirects.get('/分類/第一篇/'), '/blog/第一篇/');
+  assert.equal(postPath(p, i.categories), '/分類/第一篇/');
+  const m = build(i);
+  assert.equal(m.routes.find(r => r.kind === 'post')!.path, '/分類/第一篇/');
+  assert.equal(m.redirects.get('/blog/第一篇/'), '/分類/第一篇/');
   i.categories[0].slug = '其他分類';
-  assert.equal(postPath(p, i.categories), '/blog/第一篇/');
+  assert.equal(postPath(p, i.categories), '/其他分類/第一篇/');
+});
+test('原有分類轉址改為正式網址，必須保留舊 /blog/ 與其他真正的歷史轉址', () => {
+  const before = { urls: { a: '/blog/a/' }, redirects: { '/分類/a/': '/blog/a/' } };
+  const after = checkURLs(build(input([post('a')])), before);
+  assert.equal(after.urls.a, '/分類/a/');
+  assert.equal(after.redirects['/blog/a/'], '/分類/a/');
+  assert.equal(after.redirects['/分類/a/'], undefined);
 });
 test('Blog 文章總覽與真正分類分離；歷史誤用的分類路徑永久轉址', () => {
   const i = input([post('a'), post('b')]);
@@ -35,16 +43,16 @@ test('Blog 文章總覽與真正分類分離；歷史誤用的分類路徑永久
   assert.equal(m.byPath.get('/分類/')?.kind, 'category');
   assert.equal(m.byPath.get('/blog/')?.kind, 'blog');
   assert.equal(m.redirects.get('/舊筆記/'), '/blog/');
-  assert.equal(m.redirects.get('/舊筆記/a/'), '/blog/a/');
-  assert.equal(m.redirects.get('/分類/a/'), '/blog/a/');
+  assert.equal(m.redirects.get('/舊筆記/a/'), '/分類/a/');
+  assert.equal(m.redirects.get('/blog/a/'), '/分類/a/');
   assert.throws(() => build(i, { blogLegacyPaths: ['/分類/'] }), /轉址衝突/);
   assert.equal(build(i, { blogIndexable: false }).byPath.get('/blog/')!.noindex, true);
 });
-test('不同分類同名 slug 必須攔截，避免 /blog/ 路徑碰撞', () => {
+test('歷史 /blog/slug 單一轉址目標不明時要攔截跨分類重名 slug', () => {
   const i = input([post('a')]);
   i.categories.push({ id: '第二類', name: '其他分類', slug: '其他', description: '其他主題', indexable: true });
   i.posts.push(post('b', { slug: 'a', category: '第二類' }));
-  assert.throws(() => build(i), /網址衝突/);
+  assert.throws(() => build(i), /轉址衝突/);
 });
 test('草稿與未到台灣發布日的文章都不產生路由', () => {
   const model = build(input([post('草稿', { draft: true }), post('明天', { publishedAt: '2026-10-22' }), post('今天', { publishedAt: '2026-10-21' })]));
@@ -77,7 +85,7 @@ test('範例和 noindex 文章不計入分類標籤的開放索引門檻', () =>
 test('整站開關、範例內容和 Cloudflare 預覽均保護索引', () => {
   assert.ok(build(input([post('a')]), { indexable: false }).routes.every(r => r.noindex));
   assert.ok(build(input([post('a')]), {}, true).routes.every(r => r.noindex));
-  assert.equal(build(input([post('a', { sample: true })])).byPath.get('/blog/a/')!.noindex, true);
+  assert.equal(build(input([post('a', { sample: true })])).byPath.get('/分類/a/')!.noindex, true);
   assert.equal(isPreview({ CF_PAGES: '1', CF_PAGES_BRANCH: 'feature' }, 'main'), true);
   assert.equal(isPreview({ CF_PAGES: '1' }, 'main'), true);
   assert.equal(isPreview({ CF_PAGES: '1', CF_PAGES_BRANCH: 'main' }, 'main'), false);
@@ -107,7 +115,7 @@ test('既有網址更動必須有 301，標題改字不需轉址', () => {
   assert.throws(() => checkURLs(build(input([post('a', { slug: 'b' })])), before), /aliases/);
   assert.doesNotThrow(() => checkURLs(build(input([post('a', { title: '新標題' })])), before));
   const m = build(input([post('a', { slug: 'b', aliases: ['/分類/a/'] })]));
-  assert.equal(checkURLs(m, before).redirects['/分類/a/'], '/blog/b/');
+  assert.equal(checkURLs(m, before).redirects['/分類/a/'], '/分類/b/');
 });
 test('舊轉址不可刪除，也不能與現有頁面衝突', () => {
   assert.throws(() => checkURLs(build(input([post('a')])), { urls: {}, redirects: { '/old/': '/分類/a/' } }), /不可遺失/);
@@ -140,8 +148,9 @@ test('分類仍可獨立索引，Blog 不是分類；推薦依標籤與主題且
 test('新舊分類網址 301 可同時保留，任何分類頁不得誤轉 Blog', () => {
   const m = build(input([post('a')]), { blogLegacyPaths: ['/舊索引/'] });
   assert.equal(m.redirects.get('/分類/a/'), '/blog/a/');
-  assert.equal(m.redirects.get('/舊索引/a/'), '/blog/a/');
+  assert.equal(m.redirects.get('/舊索引/a/'), '/分類/a/');
   assert.equal(m.redirects.get('/舊索引/'), '/blog/');
   assert.equal(m.byPath.get('/分類/')?.kind, 'category');
-  assert.equal(m.redirects.has('/分類/'), false);
+  assert.equal(m.byPath.get('/分類/a/')?.kind, 'post');
+  assert.equal(m.redirects.has('/分類/a/'), false);
 });
