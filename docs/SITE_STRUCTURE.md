@@ -6,7 +6,7 @@
 
 目前有 **3 篇公開文章**、**2 個公開獨立頁面**、**10 個網站網址**。
 
-文章固定使用「／blog／文章網址／」，Blog 是全部文章列表、Category 是真正分類；舊「／網站筆記／文章網址／」保留 301 轉址，分類頁獨立輸出。獨立頁面使用「／頁面網址／」。範例一律不開放索引。
+文章正式網址採「／分類 slug／文章 slug／」，`/blog/` 僅作全部文章列表；舊 `/blog/文章/` 與 `/網站筆記/文章/` 皆直接 301 到正確分類文章。獨立頁面使用「／頁面網址／」。範例一律不開放索引。
 
 ## 網址與原始檔案
 
@@ -14,9 +14,9 @@
 | --- | --- | --- | --- | --- |
 | [/](https://example.com/) | 首頁 | 網站公版 | 自動產生 | 另受整站與預覽環境設定控制 |
 | [/blog/](https://example.com/blog/) | 文章索引 | 全部文章 | 自動產生 | 另受整站與預覽環境設定控制 |
-| [/blog/SEO發布檢查/](https://example.com/blog/SEO發布檢查/) | 文章 | SEO 發布檢查 | [開啟內容](../content/posts/SEO檢查.md) | 範例：不收錄 |
-| [/blog/圖片上傳流程/](https://example.com/blog/圖片上傳流程/) | 文章 | 圖片上傳流程 | [開啟內容](../content/posts/圖片上傳.md) | 範例：不收錄 |
-| [/blog/新增第一篇文章/](https://example.com/blog/新增第一篇文章/) | 文章 | 新增第一篇文章 | [開啟內容](../content/posts/第一篇文章.md) | 範例：不收錄 |
+| [/website-guides/SEO發布檢查/](https://example.com/website-guides/SEO發布檢查/) | 文章 | SEO 發布檢查 | [開啟內容](../content/posts/SEO檢查.md) | 範例：不收錄 |
+| [/website-guides/圖片上傳流程/](https://example.com/website-guides/圖片上傳流程/) | 文章 | 圖片上傳流程 | [開啟內容](../content/posts/圖片上傳.md) | 範例：不收錄 |
+| [/website-guides/新增第一篇文章/](https://example.com/website-guides/新增第一篇文章/) | 文章 | 新增第一篇文章 | [開啟內容](../content/posts/第一篇文章.md) | 範例：不收錄 |
 | [/guide/](https://example.com/guide/) | 獨立頁面 | 網站內容入門指南 | [開啟內容](../content/pages/入門指南.md) | 範例：不收錄 |
 | [/about/](https://example.com/about/) | 獨立頁面 | 關於這個網站 | [開啟內容](../content/pages/關於.md) | 範例：不收錄 |
 | [/website-guides/](https://example.com/website-guides/) | 分類 | 網站架設與內容管理 | 自動產生 | 依分類／標籤設定及篇數判斷 |
@@ -38,12 +38,12 @@
 
 | 舊網址 | 新網址 | 狀態碼 |
 | --- | --- | --- |
-| /website-guides/SEO發布檢查/ | /blog/SEO發布檢查/ | 301 |
-| /網站筆記/SEO發布檢查/ | /blog/SEO發布檢查/ | 301 |
-| /website-guides/圖片上傳流程/ | /blog/圖片上傳流程/ | 301 |
-| /網站筆記/圖片上傳流程/ | /blog/圖片上傳流程/ | 301 |
-| /website-guides/新增第一篇文章/ | /blog/新增第一篇文章/ | 301 |
-| /網站筆記/新增第一篇文章/ | /blog/新增第一篇文章/ | 301 |
+| /blog/SEO發布檢查/ | /website-guides/SEO發布檢查/ | 301 |
+| /網站筆記/SEO發布檢查/ | /website-guides/SEO發布檢查/ | 301 |
+| /blog/圖片上傳流程/ | /website-guides/圖片上傳流程/ | 301 |
+| /網站筆記/圖片上傳流程/ | /website-guides/圖片上傳流程/ | 301 |
+| /blog/新增第一篇文章/ | /website-guides/新增第一篇文章/ | 301 |
+| /網站筆記/新增第一篇文章/ | /website-guides/新增第一篇文章/ | 301 |
 | /網站筆記/ | /blog/ | 301 |
 
 ## 檢查結果在哪裡
