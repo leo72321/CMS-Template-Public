@@ -50,7 +50,7 @@ export function buildSitemapParts(routes: readonly Route[], maxUrls = 200): Site
 export function renderSitemapIndex(parts: readonly SitemapPart[], domain: string): string {
   if (!parts.length) return xmlStart + '<urlset xmlns="' + namespace + '"></urlset>';
   const entries = parts.map(part => '<sitemap><loc>'
-    + escapeXML('https://' + domain + '/sitemaps/' + part.filename) + '</loc></sitemap>').join('');
+    + escapeXML('https://' + domain + '/' + part.filename) + '</loc></sitemap>').join('');
   return ensureXMLSize(xmlStart + '<sitemapindex xmlns="' + namespace + '">' + entries + '</sitemapindex>', 'Sitemap Index');
 }
 

@@ -83,11 +83,12 @@ run(() => {
   if (actualSitemapIndex !== expectedSitemapIndex) {
     errors.push('Sitemap Index（網站地圖總索引）與實際可索引頁面不一致。');
   }
-  const sitemapsDir = 'dist/sitemaps';
+  // 所有子 Sitemap 必須放網站根目錄，避免 Google 在非 GSC 提交情境限制子目錄覆蓋範圍。
+  const sitemapsDir = 'dist';
   const expectedFileNames = new Set(sitemapParts.map(p => p.filename));
-  const actualFileNames = existsSync(sitemapsDir) ? files(sitemapsDir)
-    .filter(file => file.endsWith('.xml'))
-    .map(file => relative(sitemapsDir, file).split(sep).join('/')) : [];
+  const actualFileNames = files(sitemapsDir)
+    .map(file => relative(sitemapsDir, file).split(sep).join('/'))
+    .filter(name => /^(?:posts|pages|categories|tags)-[0-9]{3,}\.xml$/.test(name));
   if (actualFileNames.length !== expectedFileNames.size ||
       actualFileNames.some(name => !expectedFileNames.has(name))) {
     errors.push('Sitemap 子檔案缺少、過期或輸出多餘 XML。');

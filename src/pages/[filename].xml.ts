@@ -1,6 +1,6 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
-import { getModel } from '../../lib/content';
-import { buildSitemapParts, renderSitemapPart, type SitemapPart } from '../../lib/sitemap';
+import { getModel } from '../lib/content';
+import { buildSitemapParts, renderSitemapPart, type SitemapPart } from '../lib/sitemap';
 
 export const getStaticPaths = (async () => {
   const model = await getModel();
