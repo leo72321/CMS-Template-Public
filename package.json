@@ -24,7 +24,9 @@
     "urls:update": "node --import tsx scripts/urls.ts --update",
     "test:output": "node --import tsx --test tests/integration/*.test.ts",
     "redirects:sync": "node --import tsx scripts/redirects.ts --sync",
-    "redirects:check": "node --import tsx scripts/redirects.ts --check"
+    "redirects:check": "node --import tsx scripts/redirects.ts --check",
+    "media:verify:full": "npm run media:verify -- --full",
+    "media:orphans": "node --import tsx scripts/media-orphans.ts"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.3",
