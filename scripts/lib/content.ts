@@ -1,9 +1,10 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import matter from 'gray-matter';
 import { postSchema, pageSchema, taxonomySchema, topicSchema } from '../../src/lib/schema';
 import { makeModel, type Input } from '../../src/lib/model';
 import { loadSite, isPreview } from '../../src/lib/settings';
+import { redirectHistorySchema } from '../../src/lib/redirect-manager';
 export function files(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(f => f.isDirectory() ? files(join(dir, f.name)) : [join(dir, f.name)]).sort();
 }
@@ -22,7 +23,9 @@ export function readInput(root = process.cwd()): Input {
 }
 export function readModel(root = process.cwd()) {
   const site = loadSite(root);
-  return makeModel(readInput(root), site, new Date(), isPreview(process.env, site.productionBranch));
+  const ledgerFile = join(root, 'content', 'redirect-ledger.json');
+  const ledger = existsSync(ledgerFile) ? redirectHistorySchema.parse(JSON.parse(readFileSync(ledgerFile, 'utf8'))) : undefined;
+  return makeModel(readInput(root), site, new Date(), isPreview(process.env, site.productionBranch), ledger);
 }
 export async function run(task: () => unknown | Promise<unknown>) {
   try { await task(); } catch (error) { console.error(`\n✗ ${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; }

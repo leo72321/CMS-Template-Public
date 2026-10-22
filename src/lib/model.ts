@@ -1,4 +1,5 @@
 import type { Site, PostData, PageData, Taxonomy, Topic } from './schema';
+import { manageRedirects, type RedirectHistory } from './redirect-manager';
 
 export type Post = { data: PostData; body: string; file: string; kind: 'post' };
 export type Page = { data: PageData; body: string; file: string; kind: 'page' };
@@ -28,7 +29,7 @@ export const pathFor = (d: Document, categories: Taxonomy[]) => d.kind === 'post
 export const todayTaipei = (now = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(now);
-export function makeModel(input: Input, site: Site, now = new Date(), preview = false) {
+export function makeModel(input: Input, site: Site, now = new Date(), preview = false, redirectHistory?: RedirectHistory) {
   const errors: string[] = [];
   const unique = (list: { id: string }[], label: string) => {
     const seen = new Set<string>();
@@ -143,6 +144,7 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
     .sort((a, b) => b.score - a.score || b.post.data.publishedAt.localeCompare(a.post.data.publishedAt) || a.post.data.uid.localeCompare(b.post.data.uid))
     .slice(0, Math.max(0, limit))
     .map(x => x.post);
-  return { ...input, posts, pages, routes, byPath, redirects, canIndex, related, site };
+  const redirectState = manageRedirects(redirects, redirectHistory, site.redirectManagement, now);
+  return { ...input, posts, pages, routes, byPath, redirects: redirectState.redirects, redirectState, canIndex, related, site };
 }
 export type Model = ReturnType<typeof makeModel>;

@@ -177,3 +177,17 @@ test('POST 頁尾可全站設定：標籤／作者／自訂區塊可獨立關閉
     blocks: [{ id: 'bad', enabled: true, href: 'javascript:alert(1)', linkText: '開啟' }],
   } }), /自訂連結/);
 });
+
+test('自動退役 tombstone 可放行 url-lock 舊 301 退出，其他網址保護仍有效', () => {
+  const policy = { maxActive: 1, overflowAutoPrune: true, agePrune: { enabled: false, days: 90 } };
+  const m = build(input([post('a'), post('b')]), { redirectManagement: policy });
+  assert.equal(m.redirects.size, 1);
+  const retired = new Set(Object.entries(m.redirectState.history.entries)
+    .filter(([, record]) => !!record.retiredAt).map(([from]) => from));
+  assert.deepEqual([...retired], ['/blog/a/']);
+  const previous = { urls: { a: '/分類/a/', b: '/分類/b/' }, redirects: {
+    '/blog/a/': '/分類/a/', '/blog/b/': '/分類/b/',
+  }};
+  assert.throws(() => checkURLs(m, previous), /既有 301/);
+  assert.doesNotThrow(() => checkURLs(m, previous, retired));
+});

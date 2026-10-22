@@ -1,10 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { makeModel, pathFor } from '../src/lib/model';
-import { loadSite } from '../src/lib/settings';
-import { readInput, run } from './lib/content';
+import { pathFor } from '../src/lib/model';
+import { readInput, readModel, run } from './lib/content';
 run(() => {
   const input = readInput();
-  const model = makeModel(input, loadSite());
+  const model = readModel();
   const cell = (s: string) => s.replace(/\|/g, '／').replace(/\n/g, ' ');
   const link = (file: string) => `[開啟內容](../${file})`;
   const lines = [

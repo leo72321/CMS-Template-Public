@@ -1,5 +1,6 @@
 import { test, after } from 'node:test';
 import { encodePath } from '../../src/lib/model';
+import { readModel } from '../../scripts/lib/content';
 import { load } from 'cheerio';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
@@ -64,3 +65,14 @@ test('故意切斷文章索引的全部連入，會判為孤兒頁', () => {
   } finally { for (const [file, content] of originals) writeFileSync(file, content); }
 });
 after(() => { try { const result = audit(); assert.equal(result.status, 0, result.stderr); } finally { rmSync(sandbox, { recursive: true, force: true }); } });
+
+test('靜態 301 與容量政策一致，沒有重複、超額或退役規則復活', () => {
+  const model = readModel();
+  const expected = [...model.redirects].map(([from, to]) => encodePath(from) + ' ' + encodePath(to) + ' 301');
+  const actual = readFileSync(join(sandbox, 'dist/_redirects'), 'utf8').trim().split(/\r?\n/).filter(Boolean);
+  assert.deepEqual(actual, expected);
+  assert.ok(actual.length <= model.site.redirectManagement.maxActive);
+  for (const [from, record] of Object.entries(model.redirectState.history.entries)) {
+    if (record.retiredAt) assert.equal(model.redirects.has(from), false);
+  }
+});

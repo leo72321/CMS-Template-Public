@@ -45,5 +45,13 @@
         "linkText": "查看介紹頁"
       }
     ]
+  },
+  "redirectManagement": {
+    "maxActive": 1950,
+    "overflowAutoPrune": true,
+    "agePrune": {
+      "enabled": false,
+      "days": 90
+    }
   }
 }

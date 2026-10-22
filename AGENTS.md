@@ -48,3 +48,7 @@ GTM 只提供 ID 入口，不擅自替少爺新增追蹤事件。
 ## POST 共用頁尾與擴充限制
 
 所有 Post 正文後只允許共用 `PostFooter.astro` 輸出：Tag（`postFooter.tags`）、作者介紹（`postFooter.author.enabled`）、獨立開關的自訂區塊（`postFooter.blocks[].enabled`）和推薦（`relatedArticles.enabled`）。停用時不可清空區塊資料。預設不加閱讀提醒、Topic 中心連結、服務諮詢卡片或每篇私有例外；Topic 只用於推薦相關性。新增功能修改 `PostFooterCustom.astro`，由全站開關控制，詳見 `docs/POST頁尾設定.md`。需要複雜呈現時另建 Page，不要讓 POST 變成 Landing Page。
+
+## 轉址管理防呆（不可誤刪）
+
+`src/lib/redirect-manager.ts` 負責純函式計算，`content/redirect-ledger.json` 保存建立日期、同日序號、退役 tombstone 及提醒高水位。Cloudflare Pages `_redirects` 最多輸出 `site.config.json.redirectManagement.maxActive`（預設1950）。超額預設自動淘汰最舊 **301**，禁止碰任何正式 POST/PAGE 路由。新增文章或更新路徑後執行 `npm run redirects:sync` 並一併提交檔案；main 推送／選用每日維護由專屬 GitHub Actions 同步。`agePrune.enabled` 預設 false；清理依 createdAt，不是訪客最後存取時間。不可解除 tombstone 或偽造舊轉址建立時間。完整規則見 `docs/轉址容量管理.md`。
