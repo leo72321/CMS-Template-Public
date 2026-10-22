@@ -23,8 +23,7 @@ function previousManifest(): Map<string, MediaEntry> | undefined {
     if (envSha && !/^0+$/.test(envSha)) {
       throw new Error('無法讀取 Git 比較基準 ' + envSha + ' 的媒體紀錄；為避免漏驗圖片，停止本次校驗。請在 CI 先 fetch 該 Commit。' + String(error));
     }
-    console.log('::warning::沒有可用的前次 Git 媒體索引；本次將驗證所有已引用遠端圖片。');
-    return undefined;
+    throw new Error('找不到前一次 Git 媒體索引，為避免不知情下載全站媒體，增量驗證已停止。請取得足夠 Git 歷史，或明確執行 npm run media:verify -- --full。');
   }
 }
 
