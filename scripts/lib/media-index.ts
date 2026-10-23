@@ -22,14 +22,20 @@ export type MediaDocument = {
 
 // Astro 每篇文章都會執行 Markdown 處理器；用 mtime/大小偵測變更，避免每張圖片都重新讀 JSON + 線性搜尋。
 // Map 查詢 O(1)；本機 dev 修改 manifest 後，下次讀取會自動更新。
-let cache: { file: string; version: string; value: MediaIndex } | undefined;
+let cache: { file: string; version: string; raw: string; value: MediaIndex } | undefined;
 export function loadMediaIndex(root = process.cwd()): MediaIndex {
   const file = join(root, 'content', 'media', 'manifest.json');
-  // 同一毫秒內連續重寫且檔案大小相同時，mtimeMs/ctimeMs 可能碰撞；使用奈秒級檔案狀態避免重用過期索引。
+  // 奈秒 metadata 是快取第一層；部分容器/掛載檔案系統連奈秒時間戳也會在極短連寫時碰撞。
+  // 最近兩秒內的檔案若 metadata 沒變，仍核對內容全文；穩定舊檔則直接返回 O(1) Map。
   const stat = statSync(file, { bigint: true });
   const version = [stat.dev, stat.ino, stat.mtimeNs, stat.ctimeNs, stat.size].join(':');
-  if (cache?.file === file && cache.version === version) return cache.value;
-  const manifest = JSON.parse(readFileSync(file, 'utf8')) as MediaManifest;
+  const sameVersion = cache?.file === file && cache.version === version;
+  const mtimeMs = Number(stat.mtimeNs / 1000000n);
+  const ageMs = Date.now() - mtimeMs;
+  if (sameVersion && ageMs > 2000) return cache!.value;
+  const raw = readFileSync(file, 'utf8');
+  if (sameVersion && cache!.raw === raw) return cache!.value;
+  const manifest = JSON.parse(raw) as MediaManifest;
   if (!Array.isArray(manifest.uploads)) throw new Error('媒體 manifest.json 必須包含 uploads 陣列。');
   const byUrl = new Map<string, MediaEntry>();
   for (const item of manifest.uploads) {
@@ -40,7 +46,7 @@ export function loadMediaIndex(root = process.cwd()): MediaIndex {
     byUrl.set(item.url, item);
   }
   const value = { manifest, byUrl };
-  cache = { file, version, value };
+  cache = { file, version, raw, value };
   return value;
 }
 
