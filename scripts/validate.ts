@@ -6,7 +6,7 @@ run(() => {
   const model = readModel();
   verifyURLLock(model);
   const { byUrl } = loadMediaIndex();
-  for (const d of [...model.posts, ...model.pages]) {
+  for (const d of [...model.posts, ...model.pages, ...model.cpts]) {
     if (!d.body.trim()) throw new Error(`${d.file}：內容為空。`);
     const cover = d.data.cover;
     if (!cover) continue;
@@ -20,5 +20,5 @@ run(() => {
       }
     }
   }
-  console.log(`✓ 內容驗證通過：${model.posts.length} 篇公開文章、${model.pages.length} 個獨立頁面、${model.routes.length} 個網址。`);
+  console.log(`✓ 內容驗證通過：${model.posts.length} 篇公開文章、${model.pages.length} 個獨立頁面、${model.cpts.length} 個公開 CPT 項目、${model.routes.length} 個網址。`);
 });

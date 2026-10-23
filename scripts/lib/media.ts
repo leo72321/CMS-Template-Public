@@ -7,7 +7,8 @@ export async function prepareMedia(file: string | Buffer, site: Site, path: stri
   const source = await sharp(file, { animated: false }).rotate().toBuffer();
   const metadata = await sharp(source).metadata();
   if (!['jpeg', 'png', 'webp', 'avif', 'tiff', 'gif'].includes(metadata.format ?? '') || !metadata.width || !metadata.height) throw new Error('請提供 JPG、PNG、WebP、AVIF、TIFF 或 GIF 圖片。GIF 只保留第一格。');
-  const widths = [...new Set([480, 960, 1440].map(w => Math.min(w, metadata.width!)))];
+  // 單尺寸 WebP（最大 1440，絕不放大小圖）；封面另外產生一張 OG JPEG。
+  const widths = [Math.min(1440, metadata.width!)];
   const items: Upload[] = [];
   const add = async (bytes: Buffer, suffix: string, contentType: string) => {
     const meta = await sharp(bytes).metadata();

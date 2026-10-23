@@ -17,7 +17,7 @@ export type MediaManifest = { _說明?: string; uploads: MediaEntry[] };
 export type MediaIndex = { manifest: MediaManifest; byUrl: Map<string, MediaEntry> };
 export type MediaDocument = {
   body: string;
-  data: { cover?: { url: string; ogUrl?: string; variants: { url: string; width: number }[] } };
+  data: { cover?: { url: string; ogUrl?: string; variants: { url: string; width: number }[] }; fields?: Record<string, unknown> };
 };
 
 // Astro 每篇文章都會執行 Markdown 處理器；用 mtime/大小偵測變更，避免每張圖片都重新讀 JSON + 線性搜尋。
@@ -60,6 +60,11 @@ export function collectUsedMedia(docs: Iterable<MediaDocument>, byUrl: Map<strin
       include(cover.url);
       include(cover.ogUrl);
       for (const variant of cover.variants ?? []) include(variant.url);
+    }
+    // CPT 自訂圖片、相簿、附件也計入引用，不把車輛相簿誤認為孤兒檔。
+    for (const value of Object.values(doc.data.fields ?? {})) {
+      if (typeof value === 'string' && byUrl.has(value)) include(value);
+      if (Array.isArray(value)) for (const url of value) if (typeof url === 'string' && byUrl.has(url)) include(url);
     }
     for (const match of doc.body.matchAll(/https?:\/\/[^\s<>"'()]+/g)) {
       const url = match[0].replace(/[.,;!?]+$/, '');

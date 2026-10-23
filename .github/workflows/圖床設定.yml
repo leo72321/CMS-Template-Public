@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       endpoint_preset:
-        description: 'S3 供應商＋機房；選定後自動代入 Endpoint'
+        description: '選供應商與機房，例如 B2 us-west-002；S3 Endpoint 可在下方確認'
         type: choice
         required: true
         default: choose-endpoint
@@ -48,9 +48,17 @@ on:
         type: string
         required: false
       cdn_url:
-        description: 'CDN 完整 HTTPS 前綴，可帶 /file/桶名/；網站圖片必須能公開讀回'
+        description: '自訂 CDN 優先：填完整 HTTPS 前綴；沒有自訂則留白，並手動開啟下方 B2 公開網址'
         type: string
+        required: false
+      b2_public_url:
+        description: '沒有自訂 CDN 時，是否手動使用 B2 原生公開網址？不會自動將私桶改公開'
+        type: choice
         required: true
+        default: disabled
+        options:
+          - disabled
+          - enabled
       account_id:
         description: '僅 Cloudflare R2 預設端點填 32 位 Account ID'
         type: string
@@ -60,7 +68,7 @@ on:
         type: string
         required: false
       endpoint:
-        description: '僅 custom 填完整 HTTPS S3 API Endpoint；已知廠商自動辨認'
+        description: '可填 B2 S3 端點，例如 https://s3.us-west-002.backblazeb2.com；與上方機房一致'
         type: string
         required: false
       runner:
@@ -78,7 +86,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   configure:
-    name: 找出 Bucket、實測上傳與下載，通過才儲存設定
+    name: 找 Bucket，實測上傳與 HEAD 連結，通過才儲存設定
     runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
     container: ${{ inputs.runner == 'self-hosted' && 'node:24-bookworm' || '' }}
     steps:
@@ -92,13 +100,14 @@ jobs:
           cache: npm
       - name: 安裝固定版本套件
         run: npm ci
-      - name: 探測 S3 可用 Bucket，驗證上傳、授權讀回與 CDN 公開讀回
+      - name: 發現 Bucket；自訂 CDN 優先，無自訂才手動啟用 B2 公開網址；測上傳與 HEAD
         env:
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           STORAGE_ENDPOINT_PRESET: ${{ inputs.endpoint_preset }}
           STORAGE_BUCKET: ${{ inputs.bucket }}
           STORAGE_CDN_URL: ${{ inputs.cdn_url }}
+          STORAGE_B2_PUBLIC_URL: ${{ inputs.b2_public_url }}
           STORAGE_ACCOUNT_ID: ${{ inputs.account_id }}
           STORAGE_REGION: ${{ inputs.region }}
           STORAGE_ENDPOINT: ${{ inputs.endpoint }}

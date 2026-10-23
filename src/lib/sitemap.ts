@@ -1,6 +1,6 @@
 import { encodePath, type Route } from './model';
 
-export type SitemapKind = 'posts' | 'pages' | 'categories' | 'tags';
+export type SitemapKind = string;
 export type SitemapPart = { kind: SitemapKind; filename: string; routes: Route[] };
 const kinds: SitemapKind[] = ['posts', 'pages', 'categories', 'tags'];
 const xmlStart = '<?xml version="1.0" encoding="UTF-8"?>';
@@ -22,19 +22,21 @@ export function buildSitemapParts(routes: readonly Route[], maxUrls = 200): Site
   if (!Number.isInteger(maxUrls) || maxUrls < 1 || maxUrls > 50000) {
     throw new Error('sitemap.maxUrls 必須介於 1–50000。');
   }
-  const grouped: Record<SitemapKind, Route[]> = { posts: [], pages: [], categories: [], tags: [] };
+  const grouped = new Map<string, Route[]>(kinds.map(k => [k, []]));
   for (const route of routes) {
     if (route.noindex) continue;
     // 首頁、Blog 彙整及正式 PAGE 一起屬於 pages；不建立沒有網址的空白 Sitemap。
     const kind: SitemapKind = route.kind === 'post' ? 'posts'
       : route.kind === 'category' ? 'categories'
-      : route.kind === 'tag' ? 'tags' : 'pages';
-    grouped[kind].push(route);
+      : route.kind === 'tag' ? 'tags'
+      : route.kind === 'cpt' && route.document?.kind === 'cpt' ? route.document.data.type : 'pages';
+    if (!grouped.has(kind)) grouped.set(kind, []);
+    grouped.get(kind)!.push(route);
   }
   const parts: SitemapPart[] = [];
-  for (const kind of kinds) {
+  for (const kind of [...kinds, ...[...grouped.keys()].filter(k => !kinds.includes(k)).sort()]) {
     // 明確排序，避免模型輸入順序變化造成完全不同的 Sitemap 內容。
-    const ordered = grouped[kind].sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+    const ordered = grouped.get(kind)!.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
     for (let i = 0; i < ordered.length; i += maxUrls) {
       const number = Math.floor(i / maxUrls) + 1;
       parts.push({ kind, filename: kind + '-' + String(number).padStart(3, '0') + '.xml',
@@ -59,9 +61,10 @@ export function renderSitemapPart(part: SitemapPart, domain: string): string {
   if (part.routes.length > 50000) throw new Error('單份 Sitemap 超過 50,000 個網址。');
   const entries = part.routes.map(route => {
     const url = escapeXML('https://' + domain + encodePath(route.path));
-    const date = route.document?.kind === 'post' ? route.document.data : undefined;
+    const date = route.document?.kind === 'post' || route.document?.kind === 'cpt' ? route.document.data : undefined;
     // 只使用真實發布／更新日期；PAGE／分類／TAG 不偽造每次建置的 lastmod。
-    const lastmod = date ? '<lastmod>' + escapeXML(date.updatedAt ?? date.publishedAt) + '</lastmod>' : '';
+    const last = date?.updatedAt ?? date?.publishedAt;
+    const lastmod = last ? '<lastmod>' + escapeXML(last) + '</lastmod>' : '';
     return '<url><loc>' + url + '</loc>' + lastmod + '</url>';
   }).join('');
   return ensureXMLSize(xmlStart + '<urlset xmlns="' + namespace + '">' + entries + '</urlset>', part.filename);

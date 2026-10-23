@@ -20,6 +20,8 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 | 分類、標籤與主題中心 | [內容管理](docs/內容管理.md) |
 | 網域、站名、GTM 與收錄設定 | [網站設定](site.config.json)・[中文欄位說明](docs/設定說明.md) |
 | 圖片怎麼上傳 | [圖片操作](docs/圖片操作.md) |
+| **S3 KEY、B2 機房與 Actions 設定測試** | **[圖床完整操作教學](docs/S3圖床設定.md)** |
+| **CPT 自訂文章類型（Cars 等）** | **[CPT 建立與維護](docs/CPT自訂內容.md)** |
 | Cloudflare Pages 怎麼接 | [部署說明](docs/部署說明.md) |
 | Agent 該遵守什麼規則 | [AGENTS.md](AGENTS.md) |
 | 功能與驗收範圍 | [功能與驗收](docs/功能與驗收.md) |
@@ -32,7 +34,7 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 
 ## 不寫程式初始化網站
 
-複製本公開範本為私人倉庫後，開啟 **Actions → 網站初始化精靈 → Run workflow**，先填網站名稱、網域、簡介與作者。接著使用唯一的 **Actions → 圖床設定｜S3 一站式驗證與套用**，選供應商＋機房、Bucket、CDN URL，按 Run 便會先真實上傳／CDN 單次 HEAD 連結檢查，全部通過才提交設定。詳見 [中文初始化說明](docs/初始化精靈.md)；原 B2 Native 流程未主動切換前仍保留。
+複製本公開範本為私人倉庫後，開啟 **Actions → 網站初始化精靈 → Run workflow**，先填網站名稱、網域、簡介與作者。接著使用唯一的 **Actions → 圖床設定｜S3 一站式驗證與套用**，選供應商＋機房與 Bucket，自訂 CDN 優先；沒有自訂時手動啟用 B2 公開下載網址。按 Run 便會先真實上傳／CDN 單次 HEAD 連結檢查，全部通過才提交設定。詳見 [中文初始化說明](docs/初始化精靈.md)；原 B2 Native 流程未主動切換前仍保留。
 
 ## 建立新網站
 

@@ -77,3 +77,32 @@ test('多個 Bucket 不亂選，既有媒體禁止遷移必須早於 PutObject',
   } }, guarded), /拒絕遷移/);
   assert.equal(guarded.seen.includes('PutObjectCommand'), false);
 });
+
+
+test('B2 自訂 CDN 優先：就算原生模式也啟用，不呼叫 B2 downloadUrl', async () => {
+  const mocked = mock();
+  let nativeCalled = false;
+  const result = await probeS3Storage({ ...params(), useB2PublicUrl: true }, {
+    ...mocked, b2Prefix: async () => { nativeCalled = true; return 'https://f002.backblazeb2.com/file/media/'; },
+  });
+  assert.equal(nativeCalled, false);
+  assert.equal(result.cdnBase, params().cdnBase);
+  assert.deepEqual(mocked.methods, ['HEAD']);
+});
+
+test('沒有自訂 CDN 時需手動開啟 B2 原生公開網址，不會自動改 Bucket ACL', async () => {
+  const mocked = mock();
+  let downloaded = 0;
+  const input = { ...params(), cdnBase: '', useB2PublicUrl: true };
+  const result = await probeS3Storage(input, { ...mocked, b2Prefix: async () => {
+    downloaded++;
+    return 'https://f002.backblazeb2.com/file/media/';
+  } });
+  assert.equal(downloaded, 1);
+  assert.equal(result.cdnBase, 'https://f002.backblazeb2.com/file/media/');
+  assert.match(result.testUrl, /^https:\/\/f002\.backblazeb2\.com\/file\/media\/example\.com\//);
+  assert.equal(result.cdnReachable, true);
+  const blocked = mock();
+  await assert.rejects(probeS3Storage({ ...params(), cdnBase: '' }, blocked), /手動.*開啟/);
+  assert.equal(blocked.seen.includes('PutObjectCommand'), false);
+});

@@ -46,6 +46,7 @@ test('GitHub Actions 只保留一個 S3 圖床設定入口，包含全部端點�
   const choices = [...content.slice(start, end).matchAll(/^          - ([^\n]+)$/gm)].map(x => x[1]);
   assert.deepEqual(choices, ['choose-endpoint', ...endpointPresetIds, 'custom']);
   assert.match(content, /S3_ACCESS_KEY_ID: \$\{\{ secrets\.S3_ACCESS_KEY_ID \}\}/);
+  assert.match(content, /STORAGE_B2_PUBLIC_URL: \$\{\{ inputs\.b2_public_url \}\}/);
   assert.match(content, /S3_SECRET_ACCESS_KEY: \$\{\{ secrets\.S3_SECRET_ACCESS_KEY \}\}/);
   assert.match(content, /run: node --import tsx scripts\/storage-action\.ts/);
   assert.match(content, /run: npm run verify/);
@@ -100,6 +101,7 @@ test('特殊 S3 服務仍可自訂 provider、region、endpoint；預設和手�
   assert.throws(()=>storageFormFromEndpointPreset(input('choose-endpoint')),/請先/);
   assert.throws(()=>storageFormFromEndpointPreset(input('unknown-provider-region')),/未知/);
   assert.throws(()=>storageFormFromEndpointPreset(input('b2-us-west-004',{region:'us-west-001'})),/應留空/);
-  assert.throws(()=>storageFormFromEndpointPreset(input('b2-us-west-004',{endpoint:'https://malicious.example/'})),/應留空/);
+  assert.throws(()=>storageFormFromEndpointPreset(input('b2-us-west-004',{endpoint:'https://malicious.example/'})),/B2 手動 S3 Endpoint/);
+  assert.equal(storageFormFromEndpointPreset(input('b2-us-west-002', { endpoint:'https://s3.us-west-002.backblazeb2.com' })).endpoint, 'https://s3.us-west-002.backblazeb2.com');
   assert.throws(()=>storageFormFromEndpointPreset(input('aws-us-east-1',{accountId:'1'.repeat(32)})),/只有 Cloudflare/);
 });

@@ -1,0 +1,1 @@
+CPT 內容目錄；在 site.config.json 的 contentTypes 註冊後，以 content:new 建立子目錄與草稿。

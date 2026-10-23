@@ -15,7 +15,7 @@ const schema = document?.kind === 'post' ? {
   author: { '@type': 'Person', name: site.author }, publisher: { '@type': 'Organization', name: site.title },
   ...(image ? { image: [image] } : {}),
 } : {
-  '@context': 'https://schema.org', '@type': route.kind === 'category' || route.kind === 'tag' || route.kind === 'blog' ? 'CollectionPage' : 'WebPage',
+  '@context': 'https://schema.org', '@type': route.kind === 'category' || route.kind === 'tag' || route.kind === 'blog' || route.kind === 'cpt-index' ? 'CollectionPage' : 'WebPage',
   name: route.title, description: route.description, url: canonical,
 };
 // 轉義 < 防止文章標題意外結束 JSON-LD 的 script 標籤。
@@ -28,7 +28,7 @@ const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 <meta name="robots" content={route.noindex ? 'noindex, follow' : 'index, follow'} />
 <link rel="canonical" href={canonical} />
 <meta property="og:locale" content="zh_TW" />
-<meta property="og:type" content={route.kind === 'post' ? 'article' : 'website'} />
+<meta property="og:type" content={route.kind === 'post' || route.kind === 'cpt' ? 'article' : 'website'} />
 <meta property="og:site_name" content={site.title} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={route.description} />
