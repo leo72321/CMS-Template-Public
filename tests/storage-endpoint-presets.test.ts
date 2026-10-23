@@ -14,7 +14,7 @@ const old = () => ({ domain:'holeboom.com',title:'原網站',description:'說明
   media:{bucket:'wordpress-cdn',cdnBase:''} });
 
 test('全部端點選單選項都能自動推導 provider／region／HTTPS S3 Endpoint，不必再自己填地址', () => {
-  assert.equal(endpointPresetIds.length,32);
+  assert.equal(endpointPresetIds.length,33);
   const ids = new Set<string>();
   for (const id of endpointPresetIds) {
     assert.ok(!ids.has(id),'預設端點代碼不可重複：'+id);
@@ -80,6 +80,14 @@ test('每個 GitHub Actions 供應商頁面只顯示自己的 S3 Endpoint；八�
   } catch (error) {
     if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
   }
+});
+
+test('B2 us-west-002 的端點及 Region 自動帶入', () => {
+  const form = storageFormFromEndpointPreset(input('b2-us-west-002'));
+  assert.equal(form.provider, 'b2');
+  assert.equal(form.region, 'us-west-002');
+  assert.equal(form.endpoint, 'https://s3.us-west-002.backblazeb2.com');
+  assert.equal(resolveStorageForm(form, 'holeboom.com').storage.endpoint, form.endpoint);
 });
 
 test('已建立的 B2 URL 在選擇同一 Bucket 的 S3 Endpoint 後不改變', () => {
