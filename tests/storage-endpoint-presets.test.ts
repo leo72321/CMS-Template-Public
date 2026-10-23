@@ -39,7 +39,7 @@ test('GitHub Actions 只保留一個 S3 圖床設定入口，包含全部端點�
   const workflowFile = '.github/workflows/圖床設定.yml';
   const workflows = readdirSync('.github/workflows').filter(f => f.startsWith('圖床'));
   assert.deepEqual(workflows, ['圖床設定.yml']);
-  const content = readFileSync(workflowFile, 'utf8');
+  const content = readFileSync(workflowFile, 'utf8').replace(/\r\n/g, '\n');
   const start = content.indexOf('      endpoint_preset:\n');
   const end = content.indexOf('      bucket:\n', start);
   assert.ok(start >= 0 && end > start);
