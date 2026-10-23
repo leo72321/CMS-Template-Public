@@ -19,10 +19,11 @@ test('圖床設定與 SEO／301／Sitemap／文章驗收解耦，不能因文章
   assert.match(yml, /run: node --import tsx scripts\/storage-action\.ts/);
   assert.doesNotMatch(yml, /npm run (verify|build|docs:update|urls:check|urls:update)|scripts\/(reports|validate|audit|redirects)\.ts/,
     '圖床工作流程不應呼叫 SEO、轉址、整站報表或建置');
-  assert.match(yml, /^\s+git add -- site\.config\.json$/m, '僅允許儲存圖床網站設定');
+  assert.match(yml, /node --import tsx scripts\/github-save\.ts site\.config\.json/, '儲存設定不依賴自架 Runner 的 Git 工作目錄');
   assert.doesNotMatch(yml, /git add[^\n]*(docs\/|content\/)/,
     '圖床工作流程不能提交文章／轉址／網站報表');
-  assert.match(yml, /git push origin HEAD:main/, '圖床通過後須永久寫回 main');
+  assert.match(yml, /GH_TOKEN: \$\{\{ github\.token \}\}/, '透過 Actions 內建憑證儲存設定');
+  assert.doesNotMatch(yml, /git config|git push|git commit/, '不應再依賴自架 Runner 中的 Git 工作目錄');
 });
 
 test('有媒體時驗證同一 Bucket／CDN 可以重用，禁止意外切換既有媒體來源', () => {
