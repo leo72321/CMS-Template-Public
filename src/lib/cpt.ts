@@ -8,7 +8,7 @@ export function validateCptFields(data: CptData, definition: ContentTypeDefiniti
   }
   for (const field of definition.fields) {
     const value = data.fields[field.id];
-    if (value === undefined || value === '') {
+    if (value === undefined || value === '' || (typeof value === 'string' && !value.trim()) || (field.type === 'gallery' && Array.isArray(value) && value.length === 0)) {
       if (field.required && !data.draft) errors.push('必填欄位未填：' + field.label + '（' + field.id + '）');
       continue;
     }
