@@ -143,14 +143,22 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   // 歷史上誤作主分類的路徑，另外保留原本的 301，不可直接遺失。
   const publishedSlugCounts = new Map<string, number>();
   for (const p of posts) publishedSlugCounts.set(p.data.slug, (publishedSlugCounts.get(p.data.slug) ?? 0) + 1);
+  // Historical redirects have precedence over auto-generated compatibility aliases.
+  // Newly published posts should not consume the limited _redirects budget indefinitely.
+  const autoAliases: Array<{ from: string; to: string; recorded: boolean }> = [];
   for (const p of posts) {
     if ((publishedSlugCounts.get(p.data.slug) ?? 0) !== 1) continue;
     const canonical = postPath(p, input.categories);
-    const legacyBases = new Set(['/blog/', ...legacyBlogPaths]);
-    for (const base of legacyBases) {
-      const legacy = `${base}${p.data.slug}/`;
-      if (legacy !== canonical && !p.data.aliases.includes(legacy)) redirect(legacy, canonical);
+    for (const base of new Set(['/blog/', ...legacyBlogPaths])) {
+      const from = `${base}${p.data.slug}/`;
+      if (from !== canonical && !p.data.aliases.includes(from))
+        autoAliases.push({ from, to: canonical, recorded: !!redirectHistory?.entries[from] });
     }
+  }
+  const recordedFirst = autoAliases.sort((a, b) => Number(b.recorded) - Number(a.recorded));
+  const remainingAutoSlots = Math.max(0, site.redirectManagement.maxActive - redirects.size - legacyBlogPaths.length);
+  for (const alias of recordedFirst.slice(0, remainingAutoSlots)) {
+    if (!redirectClaims.has(alias.from.toLowerCase())) redirect(alias.from, alias.to);
   }
   for (const base of legacyBlogPaths) redirect(base, '/blog/');
   for (const taxonomy of [...input.categories, ...input.tags]) {
