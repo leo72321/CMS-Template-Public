@@ -35,18 +35,50 @@ test('全部端點選單選項都能自動推導 provider／region／HTTPS S3 En
   }
 });
 
-test('GitHub Actions 的端點下拉清單與程式目錄完全一致，不會出現選了卻不支援的選項', () => {
-  const paths=['.github/workflows/圖床設定.yml',' .github/workflows/網站初始化.yml'.trim()];
-  for(const file of paths) {
-    let yaml: string;
-    try { yaml=readFileSync(file,'utf8'); } catch { continue; } // 正式站沒有「網站初始化」Workflow
-    const begin=yaml.indexOf('      endpoint_preset:\n');
-    const end=yaml.indexOf('      custom_provider:\n',begin);
-    assert.ok(begin>=0&&end>begin,'找不到端點預設清單：'+file);
-    const block=yaml.slice(begin,end);
-    const choices=[...block.matchAll(/^          - ([^\n]+)$/gm)].map(m=>m[1].trim());
-    assert.deepEqual(choices,['choose-endpoint',...endpointPresetIds,'custom'],file);
-    assert.match(yaml,/type: choice/);
+test('每個 GitHub Actions 供應商頁面只顯示自己的 S3 Endpoint；八家共用同一執行核心', () => {
+  const vendorFiles: [string, string][] = [
+    ['B2', 'b2'], ['R2', 'r2'], ['AWS', 'aws-s3'],
+    ['Wasabi', 'wasabi'], ['Spaces', 'digitalocean'],
+    ['Hetzner', 'hetzner'], ['Scaleway', 'scaleway'], ['Akamai', 'akamai'],
+  ];
+  const seen = new Set<string>();
+  for (const [file, provider] of vendorFiles) {
+    const text = readFileSync('.github/workflows/圖床-' + file + '.yml', 'utf8');
+    const start = text.indexOf('      endpoint_preset:\n');
+    const end = text.indexOf('      bucket:\n', start);
+    assert.ok(start >= 0 && end > start, file);
+    const choices = [...text.slice(start, end).matchAll(/^          - ([^\n]+)$/gm)].map(x => x[1]);
+    const expected = endpointPresetIds.filter(id => endpointPresets[id].provider === provider);
+    assert.deepEqual(choices, expected, file + ' 的機房下拉選單必須只包含該廠商');
+    for (const id of choices) {
+      assert.ok(!seen.has(id), id + ' 不可重複出現在其他廠商');
+      seen.add(id);
+    }
+    assert.match(text, /uses: \.\/\.github\/workflows\/_圖床共用套用\.yml/);
+    assert.match(text, /\$\{\{ inputs\.cdn_url \}\}/);
+    assert.match(text, /\$\{\{ inputs\.endpoint_preset \}\}/);
+    if (provider === 'r2') assert.match(text, /account_id:/);
+    else assert.doesNotMatch(text, /account_id:/);
+  }
+  assert.deepEqual([...seen].sort(), endpointPresetIds.slice().sort());
+  const advanced = readFileSync('.github/workflows/圖床設定.yml', 'utf8');
+  assert.match(advanced, /endpoint_preset: custom/);
+  assert.match(advanced, /custom_provider:/);
+  assert.match(advanced, /region:/);
+  assert.match(advanced, /endpoint:/);
+  assert.doesNotMatch(advanced, /choose-endpoint/);
+  const core = readFileSync('.github/workflows/_圖床共用套用.yml', 'utf8');
+  assert.match(core, /workflow_call:/);
+  assert.match(core, /STORAGE_ENDPOINT_PRESET/);
+  assert.match(core, /run: npm run verify/);
+  assert.match(core, /git push origin HEAD:main/);
+  assert.doesNotMatch(core, /S3_SECRET_ACCESS_KEY/);
+  try {
+    const init = readFileSync('.github/workflows/網站初始化.yml', 'utf8');
+    assert.match(init, /INIT_DOMAIN:/);
+    assert.doesNotMatch(init, /endpoint_preset:/);
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
   }
 });
 
