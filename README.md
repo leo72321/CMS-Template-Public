@@ -131,3 +131,5 @@ npm run media:verify
 ## 附件與 CPT 檔案（PDF／ZIP）
 
 現在使用現有的 `npm run media:add` 就能把 PDF／ZIP／Word／Excel 等附件原樣上傳到已設定的 B2／S3，並自動寫入 CPT `file` 欄位或 Blog／Page 下載連結；不需要替附件手動複製網址。CPT `gallery` 可以用 `--field` 一次追加一張圖片。詳見 [圖片與附件操作](docs/圖片操作.md) 和 [CPT 設定](docs/CPT自訂內容.md)。附件上限 100 MiB；**此公開圖床不適合上傳機敏資料**。
+
+**GitHub Secrets 已填好的人：** 直接在 **Actions → 媒體上傳｜圖片與 PDF／ZIP 附件** 上傳，接受 HTTPS 檔案 URL 或 Repo 來源路徑，預設 `dry_run` 預覽；成功後會自動填回 CPT 欄位或文章連結、更新媒體索引並提交 main，不需要本機重填 KEY。[查看操作](docs/圖片操作.md#不用本機-key直接從-github-actions-上傳附件)。
