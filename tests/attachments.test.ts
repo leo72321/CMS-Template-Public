@@ -161,5 +161,5 @@ test('圖片寬高仍須有效，PDF 不要求寬高；CPT file/gallery 引用�
   const used = collectUsedMedia([{ body: '', data: { fields: { report: pdf.url, photos: [img.url] } } }], refs);
   assert.deepEqual([...used].sort(), [img.url, pdf.url].sort());
   assert.equal(planMediaVerification(used, refs, undefined, { kind: 'full' }).selected.length, 2);
-  assert.throws(() => planMediaVerification(new Set([img.url]), new Map([[img.url, { ...img, width: undefined }]])), /圖片未記錄寬高/);
+  assert.throws(() => planMediaVerification(new Set([img.url]), new Map([[img.url, { ...img, width: undefined }]]), undefined), /圖片未記錄寬高/);
 });
