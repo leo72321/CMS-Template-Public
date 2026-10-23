@@ -5,6 +5,7 @@ import { load } from 'cheerio';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 // 故障注入只改臨時副本，不碰實際的 dist，也不影響開發預覽。
@@ -12,7 +13,7 @@ const originalRoot = process.cwd();
 const sandbox = mkdtempSync(join(tmpdir(), 'cms-output-test-'));
 for (const name of ['dist', 'content', 'site.config.json']) cpSync(join(originalRoot, name), join(sandbox, name), { recursive: true });
 const path = join(sandbox, 'dist/index.html');
-const audit = () => spawnSync(process.execPath, ['--import', resolve('node_modules/tsx/dist/loader.mjs'), resolve('scripts/audit.ts')], { encoding: 'utf8', cwd: sandbox });
+const audit = () => spawnSync(process.execPath, ['--import', pathToFileURL(resolve('node_modules/tsx/dist/loader.mjs')).href, resolve('scripts/audit.ts')], { encoding: 'utf8', cwd: sandbox });
 function altered(file: string, transform: (s: string) => string, expected: RegExp) {
   const before = readFileSync(file, 'utf8');
   try {
