@@ -157,6 +157,8 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   }
   const recordedFirst = autoAliases.sort((a, b) => Number(b.recorded) - Number(a.recorded));
   const remainingAutoSlots = Math.max(0, site.redirectManagement.maxActive - redirects.size - legacyBlogPaths.length);
+  const recordedActiveCount = autoAliases.filter(a => a.recorded && !redirectHistory?.entries[a.from]?.retiredAt && !redirectClaims.has(a.from.toLowerCase())).length;
+  if (recordedActiveCount > remainingAutoSlots) errors.push('既有歷史 301 轉址超過容量，不可自動刪除舊網址；請先調整轉址保護策略。');
   for (const alias of recordedFirst.slice(0, remainingAutoSlots)) {
     if (!redirectClaims.has(alias.from.toLowerCase())) redirect(alias.from, alias.to);
   }
