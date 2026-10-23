@@ -45,3 +45,27 @@ test('posts with identical slug in distinct categories do not fabricate ambiguou
   assert.ok(model.byPath.has('/b/shared/'));
   assert.equal(model.redirects.has('/blog/shared/'), false);
 });
+
+test('automatic compatibility URLs cannot evict 1,950 established redirects', () => {
+  const posts: Post[] = Array.from({ length: 1960 }, (_, i) => ({
+    kind: 'post', file: 'post-' + i + '.md', body: 'Body',
+    data: postSchema.parse({
+      uid: 'p-' + i, title: 'Post ' + i, slug: 'post-' + i,
+      category: 'a', description: 'Description', draft: false, publishedAt: '2026-01-01',
+    }),
+  }));
+  const input: Input = {
+    posts, pages: [], cpts: [], tags: [], topics: [],
+    categories: [{ id: 'a', name: 'A', slug: 'a', description: 'A', indexable: true }],
+  };
+  const site = siteSchema.parse({
+    domain: 'example.org', title: 'Example', description: 'Example website',
+    author: 'Editor', media: { bucket: 'example' },
+  });
+  const original = makeModel(input, site, new Date('2026-10-24T01:00:00Z'));
+  assert.equal(original.redirects.size, 1950);
+  assert.equal(original.redirectState.retired.length, 0);
+  const repeat = makeModel(input, site, new Date('2026-10-24T01:00:00Z'), false, original.redirectState.history);
+  assert.deepEqual([...repeat.redirects], [...original.redirects]);
+  assert.equal(repeat.redirectState.retired.length, 0);
+});
