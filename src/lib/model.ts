@@ -141,7 +141,10 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   for (const d of visible) for (const alias of d.data.aliases) redirect(alias, pathFor(d, input.categories));
   // 真正的分類有自己的列表頁，/blog/ 獨立作為全部文章入口。
   // 歷史上誤作主分類的路徑，另外保留原本的 301，不可直接遺失。
+  const publishedSlugCounts = new Map<string, number>();
+  for (const p of posts) publishedSlugCounts.set(p.data.slug, (publishedSlugCounts.get(p.data.slug) ?? 0) + 1);
   for (const p of posts) {
+    if ((publishedSlugCounts.get(p.data.slug) ?? 0) !== 1) continue;
     const canonical = postPath(p, input.categories);
     const legacyBases = new Set(['/blog/', ...legacyBlogPaths]);
     for (const base of legacyBases) {
