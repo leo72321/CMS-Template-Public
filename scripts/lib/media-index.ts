@@ -5,8 +5,8 @@ export type MediaEntry = {
   url: string;
   sha1: string;
   verifiedAt: string;
-  width: number;
-  height: number;
+  width?: number;
+  height?: number;
   bytes?: number;
   contentType?: string;
   objectName?: string;

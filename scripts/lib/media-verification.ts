@@ -14,11 +14,12 @@ export function planMediaVerification(
   const all = [...used].sort().filter(url => !url.startsWith('/')).map(url => {
     const receipt = current.get(url);
     if (!receipt) throw new Error('引用的遠端圖片沒有媒體上傳驗證紀錄：' + url);
+    const needDimensions = !receipt.contentType || receipt.contentType.startsWith('image/');
     if (!validSha1.test(receipt.sha1 || '') ||
         !receipt.verifiedAt || !Number.isFinite(Date.parse(receipt.verifiedAt)) ||
-        !Number.isInteger(receipt.width) || receipt.width <= 0 ||
-        !Number.isInteger(receipt.height) || receipt.height <= 0) {
-      throw new Error('媒體索引缺少有效雜湊、尺寸或上傳驗證時間：' + url);
+        (needDimensions && (!Number.isInteger(receipt.width) || !Number.isInteger(receipt.height) ||
+          (receipt.width ?? 0) <= 0 || (receipt.height ?? 0) <= 0))) {
+      throw new Error('媒體索引缺少有效雜湊、上傳時間，或圖片未記錄寬高：' + url);
     }
     return receipt;
   });
@@ -28,7 +29,7 @@ export function planMediaVerification(
       selected: all.filter(item => {
         const old = previous?.get(item.url);
         return !old || old.sha1 !== item.sha1 || old.verifiedAt !== item.verifiedAt
-          || old.width !== item.width || old.height !== item.height;
+          || old.width !== item.width || old.height !== item.height || old.contentType !== item.contentType;
       }),
       totalUsed: all.length,
       batch: undefined,

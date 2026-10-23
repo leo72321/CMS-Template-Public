@@ -7,8 +7,8 @@ run(() => {
   const { manifest, byUrl } = loadMediaIndex();
   const input = readInput();
   const site = loadSite();
-  const used = collectUsedMedia([...input.posts, ...input.pages], byUrl);
-  // 有些圖片沒有寫在 Markdown，但仍被全站設定或 SEO 分享圖引用。
+  const used = collectUsedMedia([...input.posts, ...input.pages, ...(input.cpts ?? [])], byUrl);
+  // 有些附件或圖片沒有寫在 Markdown，但仍被全站設定或 SEO 分享圖引用。
   for (const url of [(site as typeof site & { defaultOgImage?: string }).defaultOgImage, site.postFooter.author.photo]) {
     if (url?.startsWith('https://')) used.add(url);
   }
