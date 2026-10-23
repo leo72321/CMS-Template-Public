@@ -74,7 +74,7 @@ test('特殊 S3 服務仍可自訂 provider、region、endpoint；預設和手�
   }));
   assert.equal(custom.provider,'akamai');
   assert.equal(resolveStorageForm(custom,'holeboom.com').storage.endpoint,'https://us-ord-10.linodeobjects.com');
-  assert.throws(()=>storageFormFromEndpointPreset(input('custom',{ customProvider:'other-s3' })),/custom/);
+  assert.throws(()=>storageFormFromEndpointPreset(input('custom',{ customProvider:'other-s3' })),/自訂 S3 端點/);
   assert.throws(()=>storageFormFromEndpointPreset(input('choose-endpoint')),/請先/);
   assert.throws(()=>storageFormFromEndpointPreset(input('unknown-provider-region')),/未知/);
   assert.throws(()=>storageFormFromEndpointPreset(input('b2-us-west-004',{region:'us-west-001'})),/應留空/);
