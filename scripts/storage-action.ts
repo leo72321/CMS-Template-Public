@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { storageFormFromEndpointPreset } from '../src/lib/storage-endpoint-presets';
 import { resolveStorageConnection } from '../src/lib/storage-providers';
 import { planStorageConfiguration } from './lib/storage-config';
@@ -82,9 +81,5 @@ if (!result.cdnReachable) {
 }
 if (!next) throw new Error('內部錯誤：尚未確認可套用的儲存設定。');
 writeFileSync('site.config.json', JSON.stringify(next, null, 2) + '\n');
-const child = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/reports.ts'], { stdio: 'inherit' });
-if (child.status !== 0) {
-  writeFileSync('site.config.json', previousText);
-  throw new Error('網站結構報表產生失敗，站台設定已還原，未提交 Git。');
-}
-console.log('✓ S3 上傳與 CDN HEAD 連結檢查成功；不下載檔案內容。接著跑網站驗收，成功才會提交設定。');
+// 僅負責圖床連線及媒體設定安全檢查。文章、SEO、轉址和網站建置由獨立工作流程驗收。
+console.log('✓ S3 上傳與 CDN HEAD 均通過，site.config.json 已完成本次設定寫入；GitHub Actions 接著只提交該設定檔。');
