@@ -1,0 +1,157 @@
+name: 媒體上傳｜圖片與 PDF／ZIP 附件
+on:
+  workflow_dispatch:
+    inputs:
+      uid:
+        description: '內容永久 UID，例如 20261023-k7m2q'
+        type: string
+        required: true
+      source_path:
+        description: '來源一：Repo 已提交的檔案路徑，例如 media-inbox/report.pdf；與來源網址擇一'
+        type: string
+        required: false
+      source_url:
+        description: '來源二：HTTPS 可直接下載的檔案網址；不用上傳到 GitHub，與檔案路徑擇一'
+        type: string
+        required: false
+      field:
+        description: 'CPT 欄位名稱，例如 report（file）或 photos（gallery）；Blog/Page 留空'
+        type: string
+        required: false
+      name:
+        description: '正文圖片／附件的占位符名稱，例如 guide；CPT 可留空'
+        type: string
+        required: false
+      alt:
+        description: '圖片替代文字（上傳圖片時必填），PDF/ZIP 留空'
+        type: string
+        required: false
+      label:
+        description: '一般文章的附件下載顯示文字，例如 車況報告；CPT 可留空'
+        type: string
+        required: false
+      cover:
+        description: '是否為文章封面？附件不可當封面'
+        type: boolean
+        required: true
+        default: false
+      dry_run:
+        description: '只預覽不上傳；第一次操作建議先勾選'
+        type: boolean
+        required: true
+        default: true
+      runner:
+        description: '此次 Runner；Hosted 額度不足時選 self-hosted'
+        type: choice
+        required: true
+        default: github-hosted
+        options:
+          - github-hosted
+          - self-hosted
+permissions:
+  contents: write
+concurrency:
+  group: cms-media-upload
+  cancel-in-progress: false
+jobs:
+  upload:
+    name: 上傳附件、填回內容並寫入 GitHub
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    container: ${{ inputs.runner == 'self-hosted' && 'node:24-bookworm' || '' }}
+    steps:
+      - name: 檢查為正式主線操作
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_NAME" != "main" ]]; then
+            echo '請從 main 觸發，避免覆蓋其他分支的內容。' >&2
+            exit 1
+          fi
+      - name: 取回網站原始碼
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 安裝 CMS 程式
+        run: npm ci
+      - name: 取得本次檔案來源（不讀取 S3 KEY）
+        shell: bash
+        env:
+          MEDIA_SOURCE_PATH: ${{ inputs.source_path }}
+          MEDIA_SOURCE_URL: ${{ inputs.source_url }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$MEDIA_SOURCE_PATH" && -n "$MEDIA_SOURCE_URL" ]] || [[ -z "$MEDIA_SOURCE_PATH" && -z "$MEDIA_SOURCE_URL" ]]; then
+            echo '只能擇一提供來源：source_path 或 source_url。' >&2
+            exit 1
+          fi
+          if [[ -n "$MEDIA_SOURCE_URL" ]]; then
+            if [[ "$MEDIA_SOURCE_URL" != https://* ]]; then
+              echo '只接受 HTTPS 檔案直連網址。' >&2
+              exit 1
+            fi
+            pathpart="${MEDIA_SOURCE_URL%%\?*}"
+            filename="${pathpart##*/}"
+            extension="${filename##*.}"
+            if [[ "$filename" == "$extension" || ! "$extension" =~ ^[a-zA-Z0-9]{1,8}$ ]]; then
+              echo '來源網址需帶明確副檔名（例如 .pdf、.zip）。' >&2
+              exit 1
+            fi
+            mkdir -p .tmp/media-inbox
+            destination=".tmp/media-inbox/upload.${extension}"
+            curl --fail --location --proto '=https' --proto-redir '=https' --max-filesize 104857600 --max-time 150 --retry 0 --silent --show-error --output "$destination" "$MEDIA_SOURCE_URL"
+            echo "UPLOAD_SOURCE=$destination" >> "$GITHUB_ENV"
+          else
+            if [[ "$MEDIA_SOURCE_PATH" = /* || "$MEDIA_SOURCE_PATH" == *".."* || ! -f "$MEDIA_SOURCE_PATH" ]]; then
+              echo 'source_path 必須是已提交到 Repo 的一般檔案相對路徑，不可穿越目錄。' >&2
+              exit 1
+            fi
+            echo "UPLOAD_SOURCE=$MEDIA_SOURCE_PATH" >> "$GITHUB_ENV"
+          fi
+      - name: 使用 Secrets 上傳圖片／附件（只 HEAD 一次）
+        shell: bash
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          B2_APPLICATION_KEY_ID: ${{ secrets.B2_APPLICATION_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_ID: ${{ secrets.B2_BUCKET_ID }}
+          MEDIA_UID: ${{ inputs.uid }}
+          MEDIA_FIELD: ${{ inputs.field }}
+          MEDIA_ALT: ${{ inputs.alt }}
+          MEDIA_NAME: ${{ inputs.name }}
+          MEDIA_LABEL: ${{ inputs.label }}
+          MEDIA_COVER: ${{ inputs.cover }}
+          MEDIA_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(--uid "$MEDIA_UID" --file "$UPLOAD_SOURCE")
+          if [[ -n "$MEDIA_FIELD" ]]; then args+=(--field "$MEDIA_FIELD"); fi
+          if [[ -n "$MEDIA_ALT" ]]; then args+=(--alt "$MEDIA_ALT"); fi
+          if [[ -n "$MEDIA_NAME" ]]; then args+=(--name "$MEDIA_NAME"); fi
+          if [[ -n "$MEDIA_LABEL" ]]; then args+=(--label "$MEDIA_LABEL"); fi
+          if [[ "$MEDIA_COVER" == "true" ]]; then args+=(--cover); fi
+          if [[ "$MEDIA_DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
+          node --import tsx scripts/media.ts "${args[@]}"
+      - name: 更新索引並自動提交正式內容
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          MEDIA_UID: ${{ inputs.uid }}
+        run: |
+          set -euo pipefail
+          npm run docs:update
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add content/media/manifest.json content/posts content/pages content/cpt docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
+          if git diff --cached --quiet; then
+            echo '沒有需提交的內容變更。'
+            exit 1
+          fi
+          git commit -m "media: upload file for ${MEDIA_UID}"
+          git push origin HEAD:main
