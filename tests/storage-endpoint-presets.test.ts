@@ -100,7 +100,7 @@ test('特殊 S3 服務仍可自訂 provider、region、endpoint；預設和手�
   assert.throws(()=>storageFormFromEndpointPreset(input('custom',{ customProvider:'other-s3' })),/自訂 S3 端點/);
   assert.throws(()=>storageFormFromEndpointPreset(input('choose-endpoint')),/請先/);
   assert.throws(()=>storageFormFromEndpointPreset(input('unknown-provider-region')),/未知/);
-  assert.throws(()=>storageFormFromEndpointPreset(input('b2-us-west-004',{region:'us-west-001'})),/應留空/);
+  assert.throws(()=>storageFormFromEndpointPreset(input('b2-us-west-004',{region:'us-west-001'})),/不需要另外填 Region/);
   assert.throws(()=>storageFormFromEndpointPreset(input('b2-us-west-004',{endpoint:'https://malicious.example/'})),/B2 手動 S3 Endpoint/);
   assert.equal(storageFormFromEndpointPreset(input('b2-us-west-002', { endpoint:'https://s3.us-west-002.backblazeb2.com' })).endpoint, 'https://s3.us-west-002.backblazeb2.com');
   assert.throws(()=>storageFormFromEndpointPreset(input('aws-us-east-1',{accountId:'1'.repeat(32)})),/只有 Cloudflare/);
