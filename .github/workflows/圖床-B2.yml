@@ -8,6 +8,7 @@ on:
         required: true
         options:
           - b2-us-west-001
+          - b2-us-west-002
           - b2-us-west-004
           - b2-us-east-005
           - b2-eu-central-003
