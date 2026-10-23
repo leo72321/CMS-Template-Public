@@ -8,10 +8,10 @@ const title = route.kind === 'home' ? site.title : `${route.title}｜${site.titl
 const cover = route.document?.data.cover;
 const image = cover ? new URL(cover.ogUrl ?? cover.url, `https://${site.domain}`).href : undefined;
 const document = route.document;
-const schema = document?.kind === 'post' ? {
-  '@context': 'https://schema.org', '@type': 'BlogPosting', headline: document.data.title,
+const schema = document?.kind === 'post' || document?.kind === 'cpt' ? {
+  '@context': 'https://schema.org', '@type': document.kind === 'post' ? 'BlogPosting' : 'Article', headline: document.data.title,
   description: document.data.description, url: canonical, mainEntityOfPage: canonical,
-  datePublished: `${document.data.publishedAt}T00:00:00+08:00`, dateModified: `${document.data.updatedAt ?? document.data.publishedAt}T00:00:00+08:00`,
+  ...(document.data.publishedAt ? { datePublished: `${document.data.publishedAt}T00:00:00+08:00`, dateModified: `${document.data.updatedAt ?? document.data.publishedAt}T00:00:00+08:00` } : {}),
   author: { '@type': 'Person', name: site.author }, publisher: { '@type': 'Organization', name: site.title },
   ...(image ? { image: [image] } : {}),
 } : {

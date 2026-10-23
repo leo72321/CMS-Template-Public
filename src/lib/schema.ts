@@ -158,6 +158,7 @@ export const siteSchema = z.object({
   minArchiveItems: z.number().int().min(2).default(2),
   blogIndexable: z.boolean().default(true),
   contentTypes: z.array(contentTypeSchema).max(30).default([]),
+  headerNavPages: z.array(segment).max(20).default(['about']),
   // 曾經被拿來當主分類的 Blog 入口；新版只負責 301 歷史轉址，不是分類。
   blogLegacyPaths: z.array(z.string().regex(/^\/[\p{L}\p{N}_-]+\/$/u)).default([]),
   // 建置時計算推薦。正文已有內部連結時會佔用名額，不會重複推薦。
@@ -185,7 +186,7 @@ export const siteSchema = z.object({
   }).strict().optional(),
   media: z.object({
     _說明: z.string().optional(),
-    bucket: z.string().regex(/^[A-Za-z0-9-]+$/),
+    bucket: z.string().refine(b => /^[A-Za-z0-9.-]{3,63}$/.test(b) && !b.includes('..') && !/^[.-]|[.-]$/.test(b), 'Bucket 名稱須為 3–63 字元，可包含合法的點號、英數字及連字號。'),
     cdnBase: z.string().refine((s) => !s || (s.startsWith('https://') && !/[?#]/.test(s))).default(''),
   }).strict(),
 }).strict().superRefine((site, ctx) => {

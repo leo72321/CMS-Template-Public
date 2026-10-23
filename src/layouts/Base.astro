@@ -10,11 +10,11 @@ const gtm = model.site.gtmId;
 const gtmCode = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer',${JSON.stringify(gtm)});`;
 ---
 <!doctype html>
-<html lang="zh-Hant">
+<html lang={model.site.language}>
   <head><SEO route={route} site={model.site} />{gtm && <script is:inline set:html={gtmCode} />}</head>
   <body>
     {gtm && <noscript><iframe title="Google 代碼管理工具" src={`https://www.googletagmanager.com/ns.html?id=${gtm}`} height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>}
     <a class="skip-link" href="#main">跳至主要內容</a>
-    <div class="shell"><Header model={model} /><main id="main"><slot /></main><Footer site={model.site} /></div>
+    <div class="shell"><Header model={model} /><main id="main" tabindex="-1"><slot /></main><Footer site={model.site} /></div>
   </body>
 </html>

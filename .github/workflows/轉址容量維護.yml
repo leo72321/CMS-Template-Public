@@ -5,6 +5,7 @@ on:
     paths:
       - 'content/posts/**'
       - 'content/pages/**'
+      - 'content/cpt/**'
       - 'content/categories/**'
       - 'content/tags/**'
       - 'content/topics/**'

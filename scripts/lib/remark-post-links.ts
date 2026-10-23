@@ -6,7 +6,15 @@ import { loadSite } from '../../src/lib/settings';
 // 兼容前一版 /blog/文章/ 內連，但正式 HTML 必須直連分類文章網址。
 export function canonicalPostLinks() {
   const input = readInput();
-  const bySlug = new Map(input.posts.map(p => [p.data.slug, postPath(p, input.categories)]));
+  const bySlug = new Map<string, string>();
+  const ambiguous = new Set<string>();
+  for (const post of input.posts) {
+    const slug = post.data.slug;
+    const url = postPath(post, input.categories);
+    if (bySlug.has(slug) && bySlug.get(slug) !== url) ambiguous.add(slug);
+    else bySlug.set(slug, url);
+  }
+  for (const slug of ambiguous) bySlug.delete(slug);
   const domain = loadSite().domain;
   const rewrite = (raw: string) => {
     let value = raw;

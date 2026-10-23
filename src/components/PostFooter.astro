@@ -8,11 +8,23 @@ interface Props { model: Model; post: Post; }
 const { model, post } = Astro.props;
 const { postFooter, relatedArticles } = model.site;
 // 每篇 POST 個別計算推薦；正文已出現的站內文章先排除，避免重複。
-const referenced = new Set(model.posts.filter(p => {
-  const canonical = pathFor(p, model.categories);
-  return [canonical, '/blog/' + p.data.slug + '/', ...model.site.blogLegacyPaths.map(base => base + p.data.slug + '/')]
-    .some(path => post.body.includes(path));
-}).map(p => p.data.uid));
+// Inspect only actual outbound links. Avoid scanning the full article body against every post.
+const hrefs = new Set<string>();
+for (const match of post.body.matchAll(/(?:\]\(|href\s*=\s*["'])(\/?[^\s"'?#)]+)(?:[?#][^\s"')]+)?/g)) {
+  try {
+    const raw = match[1];
+    const url = new URL(raw, 'https://' + model.site.domain);
+    if (url.hostname === model.site.domain) hrefs.add(decodeURIComponent(url.pathname));
+  } catch { /* invalid links are reported by the existing audit */ }
+}
+const uidByPath = new Map<string, string>();
+for (const candidate of model.posts) {
+  const uid = candidate.data.uid;
+  uidByPath.set(pathFor(candidate, model.categories), uid);
+  uidByPath.set('/blog/' + candidate.data.slug + '/', uid);
+  for (const base of model.site.blogLegacyPaths) uidByPath.set(base + candidate.data.slug + '/', uid);
+}
+const referenced = new Set([...hrefs].map(p => uidByPath.get(p)).filter((uid): uid is string => !!uid));
 const remaining = Math.max(0, relatedArticles.maxItems - referenced.size);
 const related = relatedArticles.enabled && remaining > 0 ? model.related(post, remaining, referenced) : [];
 const blocks = postFooter.blocks.filter(b => b.enabled && (b.title || b.text || b.href));
@@ -25,7 +37,7 @@ const hasFooter = showTags || author.enabled || blocks.length > 0 || related.len
 ---
 {hasFooter && <div class="post-footer" aria-label="文章下方資訊">
   {showTags && <nav class="post-footer-tags" aria-label="文章標籤">
-    {post.data.tags.map(id => { const tag = model.tags.find(t => t.id === id)!; return <a href={'/tag/' + tag.slug + '/'}>#{tag.name}</a>; })}
+    {post.data.tags.map(id => model.tags.find(t => t.id === id)).filter((tag): tag is (typeof model.tags)[number] => !!tag).map(tag => <a href={'/tag/' + tag.slug + '/'}>#{tag.name}</a>)}
   </nav>}
   {author.enabled && <section class="post-footer-author" aria-label="作者介紹">
     {photoAvailable && <img src={photo} alt={authorName + '照片'} loading="lazy" decoding="async" width="88" height="88" />}
