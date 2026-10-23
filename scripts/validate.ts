@@ -1,3 +1,4 @@
+import { validateCptMediaAssets } from './lib/cpt-media-validation';
 import { existsSync } from 'node:fs';
 import { loadMediaIndex } from './lib/media-index';
 import { readModel, run } from './lib/content';
@@ -6,6 +7,11 @@ run(() => {
   const model = readModel();
   verifyURLLock(model);
   const { byUrl } = loadMediaIndex();
+  for (const doc of model.cpts) {
+    const type = model.site.contentTypes.find(t => t.id === doc.data.type);
+    if (!type) throw new Error(doc.file + '：找不到 CPT 定義：' + doc.data.type);
+    validateCptMediaAssets(doc, type, byUrl);
+  }
   for (const d of [...model.posts, ...model.pages, ...model.cpts]) {
     if (!d.body.trim()) throw new Error(`${d.file}：內容為空。`);
     const cover = d.data.cover;
