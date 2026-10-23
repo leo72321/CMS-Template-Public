@@ -1,0 +1,30 @@
+name: 圖床設定｜01 Backblaze B2
+on:
+  workflow_dispatch:
+    inputs:
+      endpoint_preset:
+        description: '請選這家服務商的儲存桶所在機房'
+        type: choice
+        required: true
+        options:
+          - b2-us-west-001
+          - b2-us-west-004
+          - b2-us-east-005
+          - b2-eu-central-003
+      bucket:
+        description: '已建立的 Bucket 或 Space 名稱'
+        type: string
+        required: true
+      cdn_url:
+        description: '公開 CDN 完整 HTTPS 前綴，可有 /file/桶名/ 路徑'
+        type: string
+        required: true
+permissions:
+  contents: write
+jobs:
+  configure:
+    uses: ./.github/workflows/_圖床共用套用.yml
+    with:
+      endpoint_preset: ${{ inputs.endpoint_preset }}
+      bucket: ${{ inputs.bucket }}
+      cdn_url: ${{ inputs.cdn_url }}

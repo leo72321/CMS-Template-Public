@@ -32,7 +32,7 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 
 ## 不寫程式初始化網站
 
-複製本公開範本為私人倉庫後，開啟 **Actions → 網站初始化精靈 → Run workflow**，填寫網站名稱、正式網域、S3 相容端點、儲存桶與 CDN 子網域。操作與金鑰安全注意事項請看 [中文初始化說明](docs/初始化精靈.md)。S3／B2／R2 圖片上傳共用 AWS S3 SDK，透過「圖床連線測試」按鈕驗證真實上傳與 CDN 讀取；沒有 S3 設定的舊站保留 B2 原生 API。
+複製本公開範本為私人倉庫後，開啟 **Actions → 網站初始化精靈 → Run workflow**，先填網站名稱、網域、簡介與作者，接著從對應供應商工作流程選機房、Bucket 及 CDN URL。操作與金鑰安全注意事項請看 [中文初始化說明](docs/初始化精靈.md)。S3／B2／R2 圖片上傳共用 AWS S3 SDK，透過「圖床連線測試」按鈕驗證真實上傳與 CDN 讀取；沒有 S3 設定的舊站保留 B2 原生 API。
 
 ## 建立新網站
 
@@ -124,4 +124,4 @@ npm run media:verify
 
 ## S3 圖床設定（Actions 下拉選單）
 
-直接在 **Actions → 圖床設定精靈** 的 32 組 **S3 Endpoint（供應商＋Region）下拉選單**直接選機房；B2、R2、AWS S3、Wasabi、DigitalOcean Spaces、Hetzner、Scaleway、Akamai 都有預設，找不到時選 custom。**CDN URL 也在同一份表單填寫完整 HTTPS 前綴（可帶 `/file/桶名/` 路徑）**。S3 Access Key / Secret Key 另外存 GitHub Secrets，並使用「圖床連線測試」實際 PutObject + CDN 讀回比對。舊 B2 Native 仍保留相容。詳見 [完整設定與驗收](docs/S3圖床設定.md)。
+在 **Actions 左側選「圖床設定｜01–08」對應供應商**，再於該家專屬的機房下拉選端點；B2、R2、AWS S3、Wasabi、DigitalOcean Spaces、Hetzner、Scaleway、Akamai 都有預設，未列出的機房選「圖床設定｜09 其他／自訂 S3」。**CDN URL 也在同一份表單填寫完整 HTTPS 前綴（可帶 `/file/桶名/` 路徑）**。S3 Access Key / Secret Key 另外存 GitHub Secrets，並使用「圖床連線測試」實際 PutObject + CDN 讀回比對。舊 B2 Native 仍保留相容。詳見 [完整設定與驗收](docs/S3圖床設定.md)。

@@ -1,98 +1,23 @@
-name: 網站初始化精靈
+name: 網站初始化精靈（基本資料）
 on:
   workflow_dispatch:
     inputs:
       domain:
-        description: '正式網域，例如 example.com（不要加 https://）'
-        required: true
+        description: '正式網域，例如 example.com（不含 https）'
         type: string
+        required: true
       title:
         description: '網站名稱'
-        required: true
         type: string
+        required: true
       description:
         description: '網站簡介'
-        required: true
         type: string
+        required: true
       author:
-        description: '作者或品牌名稱'
+        description: '作者／品牌名稱'
+        type: string
         required: true
-        type: string
-      endpoint_preset:
-        description: '必選：S3 供應商＋機房的 Endpoint 預設；自訂機房選 custom'
-        required: true
-        type: choice
-        default: choose-endpoint
-        options:
-          - choose-endpoint
-          - b2-us-west-001
-          - b2-us-west-004
-          - b2-us-east-005
-          - b2-eu-central-003
-          - r2-standard
-          - r2-eu
-          - r2-us
-          - r2-fedramp
-          - aws-ap-east-2
-          - aws-ap-northeast-1
-          - aws-ap-southeast-1
-          - aws-ap-east-1
-          - aws-us-east-1
-          - aws-eu-central-1
-          - wasabi-ap-northeast-1
-          - wasabi-ap-southeast-1
-          - wasabi-us-east-1
-          - wasabi-eu-central-1
-          - do-sgp1
-          - do-nyc3
-          - do-ams3
-          - do-fra1
-          - hetzner-fsn1
-          - hetzner-nbg1
-          - hetzner-hel1
-          - scaleway-fr-par
-          - scaleway-nl-ams
-          - scaleway-pl-waw
-          - scaleway-it-mil
-          - akamai-us-east
-          - akamai-us-lax
-          - akamai-jp-tyo-3
-          - custom
-      custom_provider:
-        description: '只有 endpoint_preset=custom 才需選擇原始儲存供應商'
-        required: false
-        type: choice
-        default: other-s3
-        options:
-          - b2
-          - r2
-          - aws-s3
-          - wasabi
-          - digitalocean
-          - hetzner
-          - scaleway
-          - akamai
-          - other-s3
-      region:
-        description: '僅 custom 使用：請填 S3 Region，例如 us-west-004、auto'
-        required: false
-        type: string
-      endpoint:
-        description: '僅 custom 使用：請填完整 HTTPS S3 Endpoint'
-        required: false
-        type: string
-      account_id:
-        description: 'R2 預設端點必填 32 位 Account ID；選 custom 可自訂 Endpoint'
-        required: false
-        type: string
-      bucket:
-        description: 'Bucket 名稱，需先自行建立'
-        required: true
-        type: string
-      cdn_url:
-        description: 'CDN 完整公開 HTTPS URL，可含 /file/桶名/，不得填 S3 Endpoint'
-        required: true
-        type: string
 permissions:
   contents: write
 concurrency:
@@ -104,34 +29,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: 驗證欄位並更新網站設定
+      - name: 建立網站基本資料（圖床在下一步依供應商設定）
         env:
           INIT_DOMAIN: ${{ inputs.domain }}
           INIT_TITLE: ${{ inputs.title }}
           INIT_DESCRIPTION: ${{ inputs.description }}
           INIT_AUTHOR: ${{ inputs.author }}
-          INIT_ENDPOINT_PRESET: ${{ inputs.endpoint_preset }}
-          INIT_CUSTOM_PROVIDER: ${{ inputs.custom_provider }}
-          INIT_ENDPOINT: ${{ inputs.endpoint }}
-          INIT_REGION: ${{ inputs.region }}
-          INIT_BUCKET: ${{ inputs.bucket }}
-          INIT_CDN_URL: ${{ inputs.cdn_url }}
-          INIT_ACCOUNT_ID: ${{ inputs.account_id }}
         run: node --import tsx scripts/setup-action.ts
       - name: 驗證網站
         run: npm run verify
-      - name: 儲存網站設定
+      - name: 提交網站基本設定
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add site.config.json docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
           if ! git diff --cached --quiet; then
-            git commit -m "chore(site): initialize site configuration"
-            git push
+            git commit -m "chore(site): initialize site identity"
+            git push origin HEAD:main
           fi

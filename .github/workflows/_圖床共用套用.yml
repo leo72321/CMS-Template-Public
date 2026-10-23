@@ -1,0 +1,57 @@
+name: 圖床設定共用執行核心
+on:
+  workflow_call:
+    inputs:
+      endpoint_preset: { type: string, required: true }
+      bucket: { type: string, required: true }
+      cdn_url: { type: string, required: true }
+      account_id: { type: string, default: '' }
+      custom_provider: { type: string, default: 'other-s3' }
+      region: { type: string, default: '' }
+      endpoint: { type: string, default: '' }
+      runner: { type: string, default: github-hosted }
+permissions:
+  contents: write
+concurrency:
+  group: cms-configuration-main
+  cancel-in-progress: false
+jobs:
+  configure:
+    name: 驗證並套用圖床設定
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    container: ${{ inputs.runner == 'self-hosted' && 'node:24-bookworm' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 安裝專案依賴
+        run: npm ci
+      - name: 依所選供應商及機房設定 S3 / CDN
+        env:
+          STORAGE_ENDPOINT_PRESET: ${{ inputs.endpoint_preset }}
+          STORAGE_CUSTOM_PROVIDER: ${{ inputs.custom_provider }}
+          STORAGE_REGION: ${{ inputs.region }}
+          STORAGE_ENDPOINT: ${{ inputs.endpoint }}
+          STORAGE_ACCOUNT_ID: ${{ inputs.account_id }}
+          STORAGE_BUCKET: ${{ inputs.bucket }}
+          STORAGE_CDN_URL: ${{ inputs.cdn_url }}
+        run: node --import tsx scripts/storage-action.ts
+      - name: 網站與媒體索引完整驗收
+        run: npm run verify
+      - name: 提交經驗證的圖床設定
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site.config.json docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(storage): configure S3 provider, bucket and CDN URL"
+            git push origin HEAD:main
+          else
+            echo "圖床設定沒有變動。"
+          fi
