@@ -11,7 +11,6 @@ const params = () => ({
   accessKeyId: 'mock-access-id',
   secretAccessKey: 'mock-secret',
 });
-const bytes = Buffer.from('CMS storage connectivity check v2\n', 'utf8');
 function mock(opts: { listDenied?: boolean; buckets?: string[]; publicAcl?: boolean; cdn?: boolean } = {}) {
   const seen: string[] = [];
   const client = {

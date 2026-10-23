@@ -66,16 +66,15 @@ const summary = [
     : result.listedBuckets.length + ' 個可列出的 Bucket'),
   '- Bucket 權限：' + acl + '（僅 ACL 資訊，不等於最終網際網路可見性）',
   '- S3 真實上傳：成功',
-  '- S3 授權下載及 SHA-256：成功',
-  '- CDN 匿名下載及 SHA-256：' + (result.cdnRead ? '成功' : '失敗'),
+  '- CDN 圖片連結 HEAD：' + (result.cdnReachable ? '成功（不下載內容）' : '失敗'),
   '',
   '測試 URL：' + result.testUrl,
   '',
 ].join('\n');
 console.log(summary);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
-if (!result.cdnRead) {
-  throw new Error('S3 寫入及授權讀回成功，但 CDN 無法公開讀回相同位元組。'
+if (!result.cdnReachable) {
+  throw new Error('S3 上傳成功，但 CDN 的 HEAD 連結檢查未通過。'
     + ' 若是私有 Bucket，需先設置有權限的 CDN／Worker 讀取代理；'
     + ' 若內容本身也需保密，現有靜態文章圖片模式不適用。已拒絕儲存設定。');
 }
@@ -86,4 +85,4 @@ if (child.status !== 0) {
   writeFileSync('site.config.json', previousText);
   throw new Error('網站結構報表產生失敗，站台設定已還原，未提交 Git。');
 }
-console.log('✓ S3 上傳、授權下載、CDN 讀回都通過；接著跑網站驗收，成功才會提交設定。');
+console.log('✓ S3 上傳與 CDN HEAD 連結檢查成功；不下載檔案內容。接著跑網站驗收，成功才會提交設定。');

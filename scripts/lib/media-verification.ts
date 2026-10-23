@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { checkMediaHead } from './media-head';
 import type { MediaEntry } from './media-index';
 
 export type VerifyMode = { kind: 'changed' | 'full' | 'batch'; batchSize?: number };
@@ -43,31 +43,22 @@ export function planMediaVerification(
   return { selected: all.slice(batch * size, (batch + 1) * size), totalUsed: all.length, batch };
 }
 
+// 手動診斷用：只 HEAD 檢查 URL 是否 2xx、圖片類型正確，不讀取任何媒體本文。
 export async function verifyRemoteMedia(
   records: MediaEntry[],
   fetcher: typeof fetch = fetch,
   concurrency = 4,
 ): Promise<number> {
-  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) throw new Error('圖片校驗併發數不得超過 8。');
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) throw new Error('圖片連結檢查併發數不得超過 8。');
   let cursor = 0;
   const worker = async () => {
     while (cursor < records.length) {
       const item = records[cursor++];
-      // CDN 臨時錯誤只重試一次，避免某張圖片異常造成巨大建置成本。
-      let failure: unknown;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const response = await fetcher(item.url, { signal: AbortSignal.timeout(30000), redirect: 'error' });
-          if (!response.ok) throw new Error('HTTP ' + response.status);
-          const digest = createHash('sha1').update(Buffer.from(await response.arrayBuffer())).digest('hex');
-          if (digest !== item.sha1) throw new Error('SHA-1 與已記錄的成功上傳檔案不一致');
-          failure = undefined;
-          break;
-        } catch (error) {
-          failure = error;
-        }
+      try {
+        await checkMediaHead(item.url, item.contentType || 'image/webp', fetcher);
+      } catch (error) {
+        throw new Error('圖片 CDN 連結檢查失敗：' + item.url + '（' + String(error) + '）');
       }
-      if (failure) throw new Error('圖片 CDN 校驗失敗：' + item.url + '（' + String(failure) + '）');
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, records.length) }, worker));

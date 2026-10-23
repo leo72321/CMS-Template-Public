@@ -32,7 +32,7 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 
 ## 不寫程式初始化網站
 
-複製本公開範本為私人倉庫後，開啟 **Actions → 網站初始化精靈 → Run workflow**，先填網站名稱、網域、簡介與作者。接著使用唯一的 **Actions → 圖床設定｜S3 一站式驗證與套用**，選供應商＋機房、Bucket、CDN URL，按 Run 便會先真實上傳／S3 讀回／CDN 讀回，全部通過才提交設定。詳見 [中文初始化說明](docs/初始化精靈.md)；原 B2 Native 流程未主動切換前仍保留。
+複製本公開範本為私人倉庫後，開啟 **Actions → 網站初始化精靈 → Run workflow**，先填網站名稱、網域、簡介與作者。接著使用唯一的 **Actions → 圖床設定｜S3 一站式驗證與套用**，選供應商＋機房、Bucket、CDN URL，按 Run 便會先真實上傳／CDN 單次 HEAD 連結檢查，全部通過才提交設定。詳見 [中文初始化說明](docs/初始化精靈.md)；原 B2 Native 流程未主動切換前仍保留。
 
 ## 建立新網站
 
@@ -116,7 +116,7 @@ npm run media:verify
 
 ## 5,000 頁媒體成本優化
 
-內文圖片保持一行 Markdown URL，封面另存 YAML；`content/media/manifest.json` 是雜湊與尺寸收據，實體圖片由 B2／S3 保存。一般 CI 只下載變更媒體，完整／輪替 CDN 巡檢可獨立執行。`npm run media:orphans` 產出候選報表但絕不自動刪除遠端檔案。詳見 [圖片操作](docs/圖片操作.md)。
+內文圖片保持一行 Markdown URL，封面另存 YAML；`content/media/manifest.json` 是雜湊與尺寸收據，實體圖片由 B2／S3 保存。正常 CI 不再連線下載、重驗任何媒體；只有手動執行 `media:verify` 才以 HEAD 查死圖。`npm run media:orphans` 產出候選報表但絕不自動刪除遠端檔案。詳見 [圖片操作](docs/圖片操作.md)。
 
 ## 大型網站 Sitemap（SEO）
 
@@ -124,4 +124,4 @@ npm run media:verify
 
 ## S3 圖床設定（Actions 下拉選單）
 
-只保留一個 **Actions → 圖床設定｜S3 一站式驗證與套用**。在單一下拉選供應商＋機房（含 `b2-us-west-002`），或選 `custom` 手填特殊 S3 Endpoint；再填 Bucket（可留空嘗試自動辨識）與 CDN 完整 HTTPS URL。S3 金鑰只放 GitHub Secrets。**Run 會實測 S3 上傳、授權下載與 CDN 公開讀回，通過才更新設定**；不會自動公開私有 Bucket。詳見 [完整設定與驗收](docs/S3圖床設定.md)。
+只保留一個 **Actions → 圖床設定｜S3 一站式驗證與套用**。在單一下拉選供應商＋機房（含 `b2-us-west-002`），或選 `custom` 手填特殊 S3 Endpoint；再填 Bucket（可留空嘗試自動辨識）與 CDN 完整 HTTPS URL。S3 金鑰只放 GitHub Secrets。**Run 會實測 S3 上傳、CDN 單次 HEAD 連結檢查（不下載圖片），通過才更新設定**；不會自動公開私有 Bucket。詳見 [完整設定與驗收](docs/S3圖床設定.md)。

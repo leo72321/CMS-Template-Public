@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { Upload, Receipt } from './b2';
+import { checkMediaHead } from './media-head';
 
 export type S3Config = {
   endpoint: string;
@@ -52,28 +53,8 @@ export async function uploadS3(
         CacheControl: 'public, max-age=31536000, immutable',
       }), { abortSignal: AbortSignal.timeout(60000) });
 
-      // 真正的驗收標準是 CDN 讀回的位元組和上傳的內容一致，不依賴不一定等於 MD5 的 ETag。
-      const expected = createHash('sha256').update(item.bytes).digest('hex');
-      let verified = false;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          const response = await fetcher(item.url, {
-            signal: AbortSignal.timeout(30000),
-            redirect: 'error',
-          });
-          if (response.ok) {
-            const body = Buffer.from(await response.arrayBuffer());
-            verified = createHash('sha256').update(body).digest('hex') === expected;
-          }
-        } catch {
-          verified = false;
-        }
-        if (verified) break;
-        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 1200));
-      }
-      if (!verified) {
-        throw new Error(`S3 上傳成功，但 CDN 無法讀回相同檔案：${item.url}。請檢查子網域、公開讀取權限及 Origin 路徑設定。文章不會更新。`);
-      }
+      // 上傳 API 成功即可接受；只做一次 HEAD 防止文章引用 404，不下載媒體內容。
+      await checkMediaHead(item.url, item.contentType, fetcher);
 
       results.push({
         objectName: item.objectName,
