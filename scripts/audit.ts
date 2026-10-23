@@ -8,12 +8,12 @@ import { buildSitemapParts, renderSitemapIndex, renderSitemapPart } from '../src
 run(() => {
   const model = readModel();
   const errors: string[] = [], warnings: string[] = [];
-  const html = new Map<string, { $: ReturnType<typeof load>; bytes: number; gzip: number; file: string }>();
+  const html = new Map<string, { bytes: number; gzip: number; file: string }>();
   for (const file of files('dist').filter(f => f.endsWith('.html'))) {
     const name = relative('dist', file).split(sep).join('/');
     const path = name === 'index.html' ? '/' : name === '404.html' ? '/404/' : normalizePath(`/${name.replace(/\/index\.html$/, '')}`);
     const raw = readFileSync(file, 'utf8');
-    html.set(path, { $: load(raw), bytes: Buffer.byteLength(raw), gzip: gzipSync(raw).length, file });
+    html.set(path, { bytes: Buffer.byteLength(raw), gzip: gzipSync(raw).length, file });
   }
   const edges = new Map<string, Set<string>>(), contextual = new Map<string, Set<string>>();
   const inbound = new Map<string, Set<string>>();
@@ -21,7 +21,9 @@ run(() => {
   for (const route of expected) {
     const entry = html.get(route.path);
     if (!entry) { errors.push(`未輸出頁面：${route.path}`); continue; }
-    const { $, bytes, gzip } = entry;
+    const { bytes, gzip } = entry;
+    // Parse only the current page; do not retain thousands of Cheerio DOM trees.
+    const $ = load(readFileSync(entry.file, 'utf8'));
     if ($('h1').length !== 1) errors.push(`${route.path}：必須且只能有一個 H1（一級標題）。`);
     if ($('title').length !== 1 || !$('title').text().trim()) errors.push(`${route.path}：缺少唯一的頁面標題。`);
     if ($('meta[name="description"]').length !== 1 || !$('meta[name="description"]').attr('content')?.trim()) errors.push(`${route.path}：缺少唯一的 SEO 簡介。`);
@@ -62,7 +64,7 @@ run(() => {
         }
         if (url.hash) {
           const id = decodeURIComponent(url.hash.slice(1));
-          const target$ = html.get(resolved)!.$;
+          const target$ = resolved === route.path ? $ : load(readFileSync(html.get(resolved)!.file, 'utf8'));
           if (!target$('[id]').toArray().some(e => target$(e).attr('id') === id)) errors.push(`${route.path}：找不到連結段落 ${href}`);
         }
         if (resolved !== target) warnings.push(`${route.path} 使用舊連結 ${target}，建議改成 ${resolved}`);
