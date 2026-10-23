@@ -18,8 +18,8 @@ concurrency:
 jobs:
   configure:
     name: 驗證並套用圖床設定
-    runs-on: ${{ inputs.runner }} == 'self-hosted' && 'self-hosted' || 'ubuntu-latest'
-    container: ${{ inputs.runner }} == 'self-hosted' && 'node:24-bookworm' || ''
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    container: ${{ inputs.runner == 'self-hosted' && 'node:24-bookworm' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
