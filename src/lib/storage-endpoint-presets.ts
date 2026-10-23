@@ -4,6 +4,7 @@ import { storageProviderIds, type StorageForm, type StorageProvider } from './st
 // 新機房不在清單中時使用 custom + provider + region + endpoint，不要猜測機房名稱。
 export const endpointPresets = {
   "b2-us-west-001": { provider: "b2", region: "us-west-001", endpoint: "https://s3.us-west-001.backblazeb2.com" },
+  "b2-us-west-002": { provider: "b2", region: "us-west-002", endpoint: "https://s3.us-west-002.backblazeb2.com" },
   "b2-us-west-004": { provider: "b2", region: "us-west-004", endpoint: "https://s3.us-west-004.backblazeb2.com" },
   "b2-us-east-005": { provider: "b2", region: "us-east-005", endpoint: "https://s3.us-east-005.backblazeb2.com" },
   "b2-eu-central-003": { provider: "b2", region: "eu-central-003", endpoint: "https://s3.eu-central-003.backblazeb2.com" },
