@@ -112,16 +112,14 @@ jobs:
           STORAGE_REGION: ${{ inputs.region }}
           STORAGE_ENDPOINT: ${{ inputs.endpoint }}
         run: node --import tsx scripts/storage-action.ts
-      - name: 網站、內容及媒體索引驗收
-        run: npm run verify
-      - name: 僅在實際驗證成功後儲存設定
+      - name: 圖床通過後僅儲存 site.config.json（不執行整站 SEO／轉址驗收）
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site.config.json docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
+          git add -- site.config.json
           if ! git diff --cached --quiet; then
-            git commit -m "chore(storage): verify and apply S3 storage"
+            git commit -m "chore(storage): apply verified S3 connection"
             git push origin HEAD:main
           else
             echo "設定與現有內容一致，無需提交。"
