@@ -55,4 +55,4 @@ GTM 只提供 ID 入口，不擅自替少爺新增追蹤事件。
 
 ## 儲存供應商／CDN 設定精靈
 
-供應商皆共用 S3 Compatible AWS SDK；通過 GitHub Actions **圖床設定精靈** 選擇 provider、Region、Bucket、CDN 完整 HTTPS URL（可有路徑），Akamai／其他需手填 Endpoint。金鑰只放 Github Secrets 或本機 .env，不得填 workflow_dispatch inputs、commit 或 Markdown。正式站保持 B2 Native 直到使用者明確選擇遷移；已有媒體時必須驗證原 Bucket 和 CDN URL 相容。見 docs/S3圖床設定.md。
+供應商皆共用 S3 Compatible AWS SDK；通過 GitHub Actions **圖床設定精靈** 選擇 32 組供應商＋機房的 S3 Endpoint 預設，正常只需 Bucket／CDN 完整 HTTPS URL（可有路徑）；R2 再填 Account ID，選 `custom` 才需手填 Region／Endpoint。金鑰只放 Github Secrets 或本機 .env，不得填 workflow_dispatch inputs、commit 或 Markdown。正式站保持 B2 Native 直到使用者明確選擇遷移；已有媒體時必須驗證原 Bucket 和 CDN URL 相容。見 docs/S3圖床設定.md。
