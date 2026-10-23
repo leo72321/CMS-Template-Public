@@ -25,7 +25,7 @@ const hasFooter = showTags || author.enabled || blocks.length > 0 || related.len
 ---
 {hasFooter && <div class="post-footer" aria-label="文章下方資訊">
   {showTags && <nav class="post-footer-tags" aria-label="文章標籤">
-    {post.data.tags.map(id => { const tag = model.tags.find(t => t.id === id)!; return <a href={'/tag/' + tag.slug + '/'}>#{tag.name}</a>; })}
+    {post.data.tags.map(id => model.tags.find(t => t.id === id)).filter((tag): tag is (typeof model.tags)[number] => !!tag).map(tag => <a href={'/tag/' + tag.slug + '/'}>#{tag.name}</a>)}
   </nav>}
   {author.enabled && <section class="post-footer-author" aria-label="作者介紹">
     {photoAvailable && <img src={photo} alt={authorName + '照片'} loading="lazy" decoding="async" width="88" height="88" />}
