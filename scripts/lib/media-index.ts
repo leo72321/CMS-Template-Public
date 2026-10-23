@@ -25,8 +25,9 @@ export type MediaDocument = {
 let cache: { file: string; version: string; value: MediaIndex } | undefined;
 export function loadMediaIndex(root = process.cwd()): MediaIndex {
   const file = join(root, 'content', 'media', 'manifest.json');
-  const stat = statSync(file);
-  const version = [stat.mtimeMs, stat.ctimeMs, stat.size].join(':');
+  // 同一毫秒內連續重寫且檔案大小相同時，mtimeMs/ctimeMs 可能碰撞；使用奈秒級檔案狀態避免重用過期索引。
+  const stat = statSync(file, { bigint: true });
+  const version = [stat.dev, stat.ino, stat.mtimeNs, stat.ctimeNs, stat.size].join(':');
   if (cache?.file === file && cache.version === version) return cache.value;
   const manifest = JSON.parse(readFileSync(file, 'utf8')) as MediaManifest;
   if (!Array.isArray(manifest.uploads)) throw new Error('媒體 manifest.json 必須包含 uploads 陣列。');
