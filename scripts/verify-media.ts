@@ -6,7 +6,7 @@ import { readInput, run } from './lib/content';
 run(async () => {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
-    console.log('手動檢查媒體連結：npm run media:verify（全部 HEAD）或 --batch-size 1000（指定分批）；只驗連結狀態，不下載檔案。');
+    console.log('手動檢查圖片與附件連結：npm run media:verify（全部 HEAD）或 --batch-size 1000（指定分批）；只驗連結狀態，不下載檔案。');
     return;
   }
   const full = args.includes('--full');
@@ -18,9 +18,9 @@ run(async () => {
   const mode: VerifyMode = batch !== undefined ? { kind: 'batch', batchSize: batch } : { kind: 'full' };
   const { byUrl } = loadMediaIndex();
   const input = readInput(); // 草稿引用也納入，避免漏掉。
-  const used = collectUsedMedia([...input.posts, ...input.pages], byUrl);
+  const used = collectUsedMedia([...input.posts, ...input.pages, ...(input.cpts ?? [])], byUrl);
   const { selected, totalUsed, batch: batchNumber } = planMediaVerification(used, byUrl, undefined, mode);
   const count = await verifyRemoteMedia(selected);
   const label = mode.kind === 'batch' ? '分批第 ' + ((batchNumber ?? 0) + 1) + ' 批' : '全部';
-  console.log('✓ 媒體索引引用 ' + totalUsed + ' 個遠端檔案；手動' + label + ' HEAD 檢查 ' + count + ' 個連結，沒有下載任何圖片內容。');
+  console.log('✓ 媒體索引引用 ' + totalUsed + ' 個遠端檔案；手動' + label + ' HEAD 檢查 ' + count + ' 個連結，沒有下載任何媒體內容。');
 });

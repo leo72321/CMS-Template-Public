@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util';
+import { basename } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { loadMediaIndex, type MediaEntry } from './lib/media-index';
 import matter from 'gray-matter';
@@ -6,25 +7,73 @@ import { readInput, run } from './lib/content';
 import { loadSite } from '../src/lib/settings';
 import { segment } from '../src/lib/schema';
 import { prepareMedia } from './lib/media';
-import { uploadB2, type Receipt } from './lib/b2';
+import { prepareAttachment, isImageFilename, resolveCptAssetField, applyCptAssetField, insertAttachmentLink } from './lib/attachments';
+import { uploadB2, type Receipt, type ImageUpload } from './lib/b2';
 import { uploadS3 } from './lib/s3';
+
 run(async () => {
-  const { values } = parseArgs({ options: { uid: { type: 'string' }, file: { type: 'string' }, alt: { type: 'string' }, name: { type: 'string', default: 'image' }, cover: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, help: { type: 'boolean' } } });
-  if (values.help) { console.log('用法：npm run media:add -- --uid 內容識別碼 --file 圖片路徑 --alt 替代文字 [--cover] [--name 圖片名稱] [--dry-run]\n內文插圖先放 <!-- 圖片:名稱 --> 占位符；封面使用 --cover。dry-run 只預覽，不上傳 S3／B2。'); return; }
-  if (!values.uid || !values.file || !values.alt?.trim()) throw new Error('請提供 --uid、--file、--alt；加 --help 可查看中文說明。');
+  const { values } = parseArgs({ options: {
+    uid: { type: 'string' }, file: { type: 'string' }, alt: { type: 'string' },
+    name: { type: 'string' }, label: { type: 'string' }, field: { type: 'string' },
+    cover: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, help: { type: 'boolean' },
+  } });
+  if (values.help) {
+    console.log([
+      '圖片封面：npm run media:add -- --uid UID --file ./cover.jpg --alt 封面說明 --cover',
+      '內文圖片：npm run media:add -- --uid UID --file ./photo.jpg --alt 圖片說明 --name photo（內文先放 <!-- 圖片:photo -->）',
+      'CPT 相簿：npm run media:add -- --uid UID --file ./car.jpg --alt 車輛照片 --field photos（自動追加到 gallery）',
+      'CPT 附件：npm run media:add -- --uid UID --file ./report.pdf --field report（自動填入 file 欄位）',
+      '一般文章附件：npm run media:add -- --uid UID --file ./report.pdf --name report --label 車況報告（內文先放 <!-- 檔案:report -->）',
+      '支援 PDF、ZIP、Office、CSV、TXT、7Z、RAR、音訊及影片等附件（單檔 <=100 MiB）；圖片單尺寸 WebP。',
+      '附加 --dry-run 只列出目標網址，不上傳、不修改任何內容。',
+    ].join('\n'));
+    return;
+  }
+  if (!values.uid || !values.file) throw new Error('請提供 --uid 和 --file；使用 --help 查看圖片、CPT 和附件上傳方法。');
+  const isImage = isImageFilename(values.file);
+  if (isImage && !values.alt?.trim()) throw new Error('圖片必須提供 --alt 替代文字。');
+  if (!isImage && values.cover) throw new Error('PDF／ZIP 等附件不能設為文章封面。');
+  if (values.cover && values.field) throw new Error('--cover 不能同時指定 --field。');
   const site = loadSite();
   if (site.domain === 'example.com') throw new Error('請先執行 site:init 設定自己的網域。');
   const input = readInput();
   const doc = [...input.posts, ...input.pages, ...(input.cpts ?? [])].find(d => d.data.uid === values.uid);
-  if (!doc) throw new Error(`找不到 uid：${values.uid}`);
-  const name = segment.parse(values.cover ? 'cover' : values.name);
+  if (!doc) throw new Error('找不到 UID：' + values.uid);
+
+  const name = segment.parse(values.cover ? 'cover' : values.name ?? values.field ?? (isImage ? 'image' : 'attachment'));
   const original = readFileSync(doc.file, 'utf8');
   const parsed = matter(original);
-  const marker = `<!-- 圖片:${name} -->`;
-  if (!values.cover && parsed.content.split(marker).length !== 2) throw new Error(`請在內文放入唯一一個 ${marker} 占位符，再執行指令。`);
+  const fieldType = values.field ? resolveCptAssetField(doc, site, values.field, isImage) : undefined;
+  if (!values.cover && !fieldType) {
+    const marker = '<!-- ' + (isImage ? '圖片:' : '檔案:') + name + ' -->';
+    if (parsed.content.split(marker).length !== 2) {
+      throw new Error('請在內文放入唯一一個 ' + marker + ' 占位符，再執行上傳。');
+    }
+  }
   const mediaKind = doc.kind === 'post' ? 'blog' : doc.kind === 'page' ? 'site' : doc.data.type;
-  const items = await prepareMedia(values.file, site, '/' + mediaKind + '/' + doc.data.uid + '/', name, !!values.cover);
-  if (values['dry-run']) { console.log(JSON.stringify({ 說明: '僅預覽，尚未上傳或更新文章。', 圖片: items.map(({ bytes, ...item }) => ({ ...item, bytes: bytes.length })) }, null, 2)); return; }
+  const path = '/' + mediaKind + '/' + doc.data.uid + '/';
+  const items = isImage
+    ? await prepareMedia(values.file, site, path, name, !!values.cover)
+    : [prepareAttachment(values.file, site, path, name)];
+  const imageVariants = isImage ? items.filter((i): i is ImageUpload => i.contentType === 'image/webp' && i.width !== undefined && i.height !== undefined) : [];
+  const main = isImage ? imageVariants.at(-1)! : items[0];
+  if (!main) throw new Error('沒有產生可上傳的媒體。');
+  const url = main.url;
+
+  // 先檢查欄位型別與相簿容量，避免上傳成功後才因前台資料不合法而無法填回。
+  const nextFields = fieldType && values.field
+    ? applyCptAssetField(parsed.data.fields ?? {}, values.field, fieldType, url)
+    : undefined;
+  if (values['dry-run']) {
+    console.log(JSON.stringify({
+      說明: '僅預覽，沒有上傳，也沒有修改文章或媒體索引',
+      UID: doc.data.uid,
+      類型: doc.kind,
+      寫入目標: values.cover ? 'cover' : fieldType ? 'fields.' + values.field : '正文占位符',
+      檔案: items.map(({ bytes, ...item }) => ({ ...item, bytes: bytes.length })),
+    }, null, 2));
+    return;
+  }
   let receipts: Receipt[];
   if (site.storage) {
     const accessKeyId = process.env.S3_ACCESS_KEY_ID;
@@ -36,29 +85,46 @@ run(async () => {
       endpoint: site.storage.endpoint,
       region: site.storage.region,
       bucket: site.media.bucket,
-      accessKeyId,
-      secretAccessKey,
+      accessKeyId, secretAccessKey,
     });
   } else {
-    // 未執行新初始化精靈的舊站保留原 B2 Native 流程。
     const { B2_APPLICATION_KEY_ID: keyId, B2_APPLICATION_KEY: key, B2_BUCKET_ID: bucketId } = process.env;
-    if (!keyId || !key || !bucketId) throw new Error('缺少 B2 Native 設定。請參照 .env.example。');
+    if (!keyId || !key || !bucketId) throw new Error('缺少 B2 Native 設定，請參照 .env.example。');
     receipts = await uploadB2(items, { keyId, key, bucketId });
   }
-  const variants = items.filter(i => i.contentType === 'image/webp');
-  const main = variants.at(-1)!;
-  if (values.cover) parsed.data.cover = { url: main.url, alt: values.alt, width: main.width, height: main.height, variants: variants.map(i => ({ url: i.url, width: i.width })), ogUrl: items.find(i => i.contentType === 'image/jpeg')!.url };
-  else parsed.content = parsed.content.replace(marker, `![${values.alt.replace(/[\[\]\n]/g, '')}](${main.url})`);
-  // 先建立 Map，一次更新數筆縮圖，不必為每個 Receipt 線性掃描整份 manifest。
+
+  if (values.cover) {
+    const cover = imageVariants.at(-1)!;
+    parsed.data.cover = {
+      url: cover.url, alt: values.alt, width: cover.width, height: cover.height,
+      variants: imageVariants.map(i => ({ url: i.url, width: i.width })),
+      ogUrl: items.find(i => i.contentType === 'image/jpeg')!.url,
+    };
+  } else if (fieldType && values.field) {
+    parsed.data.fields = nextFields;
+  } else if (isImage) {
+    const safeAlt = values.alt!.replace(/[\[\]\n\r]/g, ' ');
+    parsed.content = parsed.content.replace('<!-- 圖片:' + name + ' -->', '![' + safeAlt + '](' + url + ')');
+  } else {
+    parsed.content = insertAttachmentLink(parsed.content, name, values.label ?? basename(values.file), url);
+  }
+
+  // 與現有圖片共用同一份媒體索引，二進位附件不需 width/height，不會經過 Sharp。
   const stored = loadMediaIndex();
   const records = new Map<string, MediaEntry>(stored.byUrl);
   for (const receipt of receipts) {
-    records.set(receipt.url, { ...receipt, ...(receipt.url === main.url ? { variants: variants.map(i => ({ url: i.url, width: i.width })) } : {}) });
+    records.set(receipt.url, {
+      ...receipt,
+      ...(imageVariants.some(i => i.url === receipt.url)
+        ? { variants: imageVariants.map(i => ({ url: i.url, width: i.width })) }
+        : {}),
+    });
   }
-  const manifest = { ...stored.manifest, uploads: [...records.values()] };
-  // 只有上傳 API 成功且本次新增圖片的 CDN HEAD 連結正常，才改寫本機檔案。
-  if (readFileSync(doc.file, 'utf8') !== original) throw new Error('上傳期間文章已被其他程序修改，請重新執行；這次未覆寫文章。');
-  writeFileSync('content/media/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+  // 只在全部 API 上傳及本次 URL HEAD 成功後，才更新文章與媒體索引。
+  if (readFileSync(doc.file, 'utf8') !== original) throw new Error('上傳期間內容被其他程序修改，未覆寫；請重新執行。');
+  writeFileSync('content/media/manifest.json', JSON.stringify({ ...stored.manifest, uploads: [...records.values()] }, null, 2) + '\n');
   writeFileSync(doc.file, matter.stringify(parsed.content, parsed.data));
-  console.log(`✓ 圖片已縮圖、上傳並檢查連結後填回 ${doc.file}\n${main.url}\n請執行 npm run verify，再提交文章與 manifest.json。`);
+  console.log('✓ ' + (isImage ? '圖片' : '附件') + '已上傳並以一次 HEAD 確認公開連結：' + url
+    + '\n已更新 ' + doc.file + (values.field ? '（fields.' + values.field + '）' : '')
+    + '\n請執行 npm run verify，然後提交內容與 content/media/manifest.json。');
 });

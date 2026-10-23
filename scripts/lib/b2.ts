@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { checkMediaHead } from './media-head';
-export type Upload = { objectName: string; bytes: Buffer; contentType: string; width: number; height: number; url: string };
-export type Receipt = { objectName: string; url: string; fileId: string; bytes: number; sha1: string; width: number; height: number; verifiedAt: string; contentType: string };
+export type Upload = { objectName: string; bytes: Buffer; contentType: string; width?: number; height?: number; url: string };
+export type ImageUpload = Upload & { width: number; height: number };
+export type Receipt = { objectName: string; url: string; fileId: string; bytes: number; sha1: string; width?: number; height?: number; verifiedAt: string; contentType: string };
 const sha1 = (bytes: Buffer) => createHash('sha1').update(bytes).digest('hex');
 function endpoint(value: string) {
   const url = new URL(value);
@@ -21,7 +22,7 @@ export async function uploadB2(items: Upload[], credentials: { keyId: string; ke
   const allowed = storage.allowed;
   if (!allowed?.capabilities?.includes('writeFiles')) throw new Error('這組 B2 金鑰沒有 writeFiles（上傳檔案）權限。');
   if (allowed.buckets?.length && !allowed.buckets.some((b: { id: string }) => b.id === credentials.bucketId)) throw new Error('這組 B2 金鑰沒有指定儲存桶的權限。');
-  if (allowed.namePrefix && items.some(i => !i.objectName.startsWith(allowed.namePrefix))) throw new Error('圖片路徑超出 B2 金鑰允許的前綴。');
+  if (allowed.namePrefix && items.some(i => !i.objectName.startsWith(allowed.namePrefix))) throw new Error('媒體路徑超出 B2 金鑰允許的前綴。');
   const receipt: Receipt[] = [];
   for (const item of items) {
     const upload = await request(`${storage.apiUrl}/b2api/v4/b2_get_upload_url`, { method: 'POST', headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ bucketId: credentials.bucketId }) });

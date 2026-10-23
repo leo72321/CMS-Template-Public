@@ -47,7 +47,7 @@ npm run content:new -- --type cars --title "Toyota Altis 2022" --slug toyota-alt
 
 ## 圖片與附件
 
-新上傳圖片物件路徑為：
+新上傳圖片與附件的物件路徑為：
 
 ```text
 Bucket/
@@ -57,7 +57,7 @@ Bucket/
     └── cars/UID/          # Cars CPT 圖片
 ```
 
-**這是新上傳的圖片路徑，不會搬動既有圖片。** 封面可另外產生 OG 分享圖。圖片單一 WebP 最大 1440px、不放大小圖；原 B2／S3 上傳回應成功後只做一次 HTTP HEAD 查公開圖片連結，不重新下載驗證。
+**這是新上傳的媒體路徑，不會搬動既有圖片。** 封面可另外產生 OG 分享圖。圖片單一 WebP 最大 1440px、不放大小圖；原 B2／S3 上傳回應成功後只做一次 HTTP HEAD 查公開圖片連結，不重新下載驗證。
 
 要新增車輛封面：
 
@@ -65,7 +65,32 @@ Bucket/
 npm run media:add -- --uid 20261023-k7m2q --file "./car.jpg" --alt "Toyota Altis 正面" --cover
 ```
 
-相簿欄位 `fields.photos` 是圖片 URL 清單，可放多張；附件 `fields.report` 可放 HTTPS 連結。**目前 `media:add` 只處理圖片，PDF/ZIP 等附件上傳尚未實作**，不要把現成的自訂欄位誤當成已經具備任意檔案上傳器。
+相簿與附件現在都能直接透過同一個 `media:add` 上傳器操作，不必手動複製網址。上傳圖片仍會轉成單尺寸 WebP；非圖片附件**原樣保留副檔名與位元組**。
+
+車輛相簿一次上傳一張，自動追加到 `fields.photos`，不會覆寫既有照片：
+
+```bash
+npm run media:add -- --uid 20261023-k7m2q --file "./front.jpg" --alt "Toyota 車頭" --field photos
+npm run media:add -- --uid 20261023-k7m2q --file "./rear.jpg" --alt "Toyota 車尾" --field photos
+```
+
+車況報告或其他附件直接上傳並填入 `fields.report`（CPT 定義中需為 `file` 欄位）：
+
+```bash
+npm run media:add -- --uid 20261023-k7m2q --file "./condition.pdf" --field report
+```
+
+這會把 PDF 原檔上傳到 `Bucket/網域/cars/20261023-k7m2q/report-隨機字尾.pdf`，成功後寫回該車輛 frontmatter 的 `fields.report`，前台自動產生下載連結。`--field` 使用前會先核對內容類型的欄位設定，照片只能填 `image/gallery`，文件只能填 `file`。
+
+**一般 Blog／Page 也可以放附件**：在正文先放 `<!-- 檔案:download -->`，再執行：
+
+```bash
+npm run media:add -- --uid 文章UID --file "./guide.zip" --name download --label "使用手冊 ZIP"
+```
+
+占位符會換成 Markdown 下載連結。先加 `--dry-run` 可以預覽物件名稱和網址，不會上傳或改寫文章。
+
+常見支援格式有 PDF、ZIP、7Z、RAR、Word、Excel、PowerPoint、CSV、TXT、RTF、MP3、MP4、WebM。每個附件上限 100 MiB；不接受 HTML、JavaScript、SVG 或可執行檔。**上傳所使用的 CDN 必須能匿名存取，敏感車主資料、身分文件或內部報價不可上傳到公開 Bucket**。私桶附件的登入授權與短效簽名連結另屬存取控制功能，不會因 CPT `file` 欄位而自動獲得。
 
 ## 維運與轉址
 

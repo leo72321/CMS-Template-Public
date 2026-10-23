@@ -127,3 +127,7 @@ npm run media:verify
 ## S3 圖床設定（Actions 下拉選單）
 
 只保留一個 **Actions → 圖床設定｜S3 一站式驗證與套用**。在單一下拉選供應商＋機房（含 `b2-us-west-002`），或選 `custom` 手填特殊 S3 Endpoint；再填 Bucket（可留空嘗試自動辨識）與 CDN 完整 HTTPS URL。S3 金鑰只放 GitHub Secrets。**Run 會實測 S3 上傳、CDN 單次 HEAD 連結檢查（不下載圖片），通過才更新設定**；不會自動公開私有 Bucket。詳見 [完整設定與驗收](docs/S3圖床設定.md)。
+
+## 附件與 CPT 檔案（PDF／ZIP）
+
+現在使用現有的 `npm run media:add` 就能把 PDF／ZIP／Word／Excel 等附件原樣上傳到已設定的 B2／S3，並自動寫入 CPT `file` 欄位或 Blog／Page 下載連結；不需要替附件手動複製網址。CPT `gallery` 可以用 `--field` 一次追加一張圖片。詳見 [圖片與附件操作](docs/圖片操作.md) 和 [CPT 設定](docs/CPT自訂內容.md)。附件上限 100 MiB；**此公開圖床不適合上傳機敏資料**。
