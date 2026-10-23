@@ -55,4 +55,4 @@ GTM 只提供 ID 入口，不擅自替少爺新增追蹤事件。
 
 ## 儲存供應商／CDN 設定精靈
 
-供應商皆共用 S3 Compatible AWS SDK；透過 GitHub Actions 左側選 **圖床設定｜對應供應商**，下拉僅顯示該商機房及 S3 Endpoint 預設，正常只需 Bucket／CDN 完整 HTTPS URL（可有路徑）；R2 再填 Account ID，選 `custom` 才需手填 Region／Endpoint。金鑰只放 Github Secrets 或本機 .env，不得填 workflow_dispatch inputs、commit 或 Markdown。正式站保持 B2 Native 直到使用者明確選擇遷移；已有媒體時必須驗證原 Bucket 和 CDN URL 相容。見 docs/S3圖床設定.md。
+GitHub Actions 只能使用靜態 choice，故圖床只保留 **「圖床設定｜S3 一站式驗證與套用」**，單一下拉合併供應商＋機房，不允許再生出八家專屬工作流程或公開共用核心。預設端點與 `src/lib/storage-endpoint-presets.ts` 必須一致。填完表單後使用私人倉庫 Secrets 實際 ListBuckets（允許列桶受限時改驗指定桶）、PutObject、GetObject、CDN 匿名 GET 與 SHA-256；**通過才更改 site.config.json 並提交**。已存在媒體時先跑不可變更 Bucket／Endpoint／公開前綴的防呆。私桶可搭配有權限的 CDN/Worker 代理公開讀取，但不能把真正的私有附件發佈成公開 URL。金鑰不得寫入表單、日誌、Git 或 Markdown，亦不得要求刪除權限。見 `docs/S3圖床設定.md`。
