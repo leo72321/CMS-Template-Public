@@ -2,10 +2,12 @@ import { getCollection } from 'astro:content';
 import { makeModel, type Post, type Page, type Cpt } from './model';
 import { loadSite, isPreview } from './settings';
 export async function getModel() {
-  const [postEntries, pageEntries, cptEntries, categories, tags, topics] = await Promise.all([
-    getCollection('posts'), getCollection('pages'), getCollection('cpt'), getCollection('categories'), getCollection('tags'), getCollection('topics'),
-  ]);
   const site = loadSite();
+  const [postEntries, pageEntries, cptEntries, categories, tags, topics] = await Promise.all([
+    getCollection('posts'), getCollection('pages'),
+    site.contentTypes.length ? getCollection('cpt') : Promise.resolve([]),
+    getCollection('categories'), getCollection('tags'), getCollection('topics'),
+  ]);
   return makeModel({
     posts: postEntries.map(e => ({ data: e.data, body: e.body ?? '', file: e.filePath ?? '', kind: 'post' })) as Post[],
     pages: pageEntries.map(e => ({ data: e.data, body: e.body ?? '', file: e.filePath ?? '', kind: 'page' })) as Page[],
