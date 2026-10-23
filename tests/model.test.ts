@@ -52,7 +52,10 @@ test('歷史 /blog/slug 單一轉址目標不明時要攔截跨分類重名 slug
   const i = input([post('a')]);
   i.categories.push({ id: '第二類', name: '其他分類', slug: '其他', description: '其他主題', indexable: true });
   i.posts.push(post('b', { slug: 'a', category: '第二類' }));
-  assert.throws(() => build(i), /轉址衝突/);
+  const model = build(i);
+  assert.equal(model.redirects.has('/blog/a/'), false);
+  assert.ok(model.byPath.has('/分類/a/'));
+  assert.ok(model.byPath.has('/其他/a/'));
 });
 test('草稿與未到台灣發布日的文章都不產生路由', () => {
   const model = build(input([post('草稿', { draft: true }), post('明天', { publishedAt: '2026-10-22' }), post('今天', { publishedAt: '2026-10-21' })]));
