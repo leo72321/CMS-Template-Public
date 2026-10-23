@@ -139,7 +139,7 @@ jobs:
           if [[ "$MEDIA_DRY_RUN" == "true" ]]; then args+=(--dry-run); fi
           node --import tsx scripts/media.ts "${args[@]}"
       - name: 更新索引並自動提交正式內容
-        if: ${{ inputs.dry_run }}
+        if: ${{ !inputs.dry_run }}
         shell: bash
         env:
           MEDIA_UID: ${{ inputs.uid }}
