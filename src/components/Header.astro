@@ -5,5 +5,5 @@ const { model } = Astro.props;
 ---
 <header class="site-header">
   <a class="brand" href="/">{model.site.title}<span class="brand-dot" aria-hidden="true"></span></a>
-  <nav aria-label="主要導覽"><a href="/blog/">全部文章</a>{model.pages.filter(p => p.data.slug === 'about').map(p => <a href={`/${p.data.slug}/`}>{p.data.title}</a>)}</nav>
+  <nav aria-label="主要導覽"><a href="/blog/">全部文章</a>{model.site.contentTypes.map(t => <a href={'/' + t.id + '/'}>{t.name}</a>)}{model.pages.filter(p => p.data.slug === 'about').map(p => <a href={`/${p.data.slug}/`}>{p.data.title}</a>)}</nav>
 </header>

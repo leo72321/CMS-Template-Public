@@ -1,4 +1,6 @@
 import { checkMediaHead } from './media-head';
+import { getB2DownloadPrefix } from './b2-download-url';
+import { normalizeCdnPrefix } from '../../src/lib/storage-providers';
 import {
   GetBucketAclCommand, ListBucketsCommand, PutObjectCommand, S3Client,
 } from '@aws-sdk/client-s3';
@@ -9,13 +11,15 @@ export type StorageProbeInput = {
   bucket?: string;
   preferredBucket?: string;
   domain: string;
-  cdnBase: string;
+  cdnBase?: string; // 自訂 CDN 優先，空白時只有明確啟用 B2 公開連結才可替代
+  useB2PublicUrl?: boolean;
   accessKeyId: string;
   secretAccessKey: string;
-  onBucketSelected?: (bucket: string) => void;
+  onBucketSelected?: (bucket: string, cdnBase: string) => void;
 };
 export type StorageProbeResult = {
   bucket: string;
+  cdnBase: string;
   listedBuckets: string[] | null;
   bucketAccess: 'public-acl' | 'private-acl' | 'unknown';
   cdnReachable: boolean;
@@ -26,7 +30,7 @@ export type StorageProbeResult = {
 // 不會列桶不代表不能上傳；B2 的單桶金鑰可能沒有 listAllBucketNames。
 export async function probeS3Storage(
   input: StorageProbeInput,
-  options: { client?: S3Client; fetcher?: typeof fetch } = {},
+  options: { client?: S3Client; fetcher?: typeof fetch; b2Prefix?: (key: string, secret: string, bucket: string) => Promise<string> } = {},
 ): Promise<StorageProbeResult> {
   const client = options.client ?? new S3Client({
     endpoint: input.endpoint,
@@ -61,8 +65,22 @@ export async function probeS3Storage(
     if (!/^[A-Za-z0-9.-]{3,63}$/.test(bucket) || bucket.includes('..')) {
       throw new Error('Bucket 名稱不合法，請確認儲存商後台名稱。');
     }
-    // 必須在任何遠端寫入前檢查既有媒體是否允許切換儲存來源。
-    input.onBucketSelected?.(bucket);
+    // 自訂 CDN 是第一優先；沒有自訂時，只在明確勾選才使用 B2 官方公開網址。
+    const customCdn = (input.cdnBase ?? '').trim();
+    let cdnBase: string;
+    if (customCdn) cdnBase = normalizeCdnPrefix(customCdn);
+    else if (input.useB2PublicUrl) {
+      if (!input.endpoint.endsWith('.backblazeb2.com')) {
+        throw new Error('只有 B2 端點才能開啟原生公開下載網址；其他供應商請填自訂 CDN。');
+      }
+      const native = options.b2Prefix ?? ((key: string, secret: string, name: string) =>
+        getB2DownloadPrefix(key, secret, name, fetcher));
+      cdnBase = normalizeCdnPrefix(await native(input.accessKeyId, input.secretAccessKey, bucket));
+    } else {
+      throw new Error('請優先填自訂 CDN URL；若沒有自訂 CDN，請手動將「B2 原生公開網址」選為開啟。');
+    }
+    // 既有圖片的來源及公開網址變更防呆，必須先於任何 PutObject。
+    input.onBucketSelected?.(bucket, cdnBase);
 
     let bucketAccess: StorageProbeResult['bucketAccess'] = 'unknown';
     try {
@@ -78,7 +96,7 @@ export async function probeS3Storage(
     const bytes = Buffer.from('CMS S3 connectivity check v3\n', 'utf8');
     const relative = '.cms-healthcheck/link-check-v3.txt';
     const key = input.domain + '/' + relative;
-    const url = input.cdnBase.replace(/\/+$/, '') + '/' + key.split('/').map(encodeURIComponent).join('/');
+    const url = cdnBase.replace(/\/+$/, '') + '/' + key.split('/').map(encodeURIComponent).join('/');
     await client.send(new PutObjectCommand({
       Bucket: bucket, Key: key, Body: bytes, ContentLength: bytes.length,
       ContentType: 'text/plain; charset=utf-8',
@@ -91,7 +109,7 @@ export async function probeS3Storage(
     } catch {
       // 公開連結不通時不寫入設定，並由呼叫端提供清楚的 CDN/私桶說明。
     }
-    return { bucket, listedBuckets, bucketAccess, cdnReachable, testUrl: url };
+    return { bucket, cdnBase, listedBuckets, bucketAccess, cdnReachable, testUrl: url };
   } finally {
     if (!options.client) client.destroy();
   }

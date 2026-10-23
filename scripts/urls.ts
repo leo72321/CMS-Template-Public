@@ -5,7 +5,7 @@ import { basename } from 'node:path';
 type Lock = { urls: Record<string, string>; redirects: Record<string, string> };
 export function checkURLs(model: Model, previous: Lock, retired = new Set<string>()) {
   const current = Object.fromEntries([
-    ...[...model.posts, ...model.pages].map(d => [d.data.uid, pathFor(d, model.categories)]),
+    ...[...model.posts, ...model.pages, ...model.cpts].map(d => [d.data.uid, pathFor(d, model.categories)]),
     ...model.routes.filter(r => r.taxonomy && r.page === 1).map(r => [`${r.kind}:${r.taxonomy!.id}`, r.path]),
   ]);
   const errors: string[] = [];

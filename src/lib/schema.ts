@@ -46,6 +46,51 @@ export const postSchema = z.object({
   updatedAt: date.optional(),
 }).strict().refine((p) => !p.updatedAt || p.updatedAt >= p.publishedAt, '更新日期不可早於發布日期。');
 export const pageSchema = z.object(base).strict();
+// CPT（自訂文章類型）是資料驅動的內容集合，不為 cars/houses/products 個別開發 CMS。
+const cptId = z.string().regex(/^[a-z][a-z0-9-]{1,39}$/, '類型代碼限小寫英數與連字號，如 cars、houses。');
+const cptFieldId = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, '自訂欄位 ID 限小寫英數與底線。');
+export const cptFieldSchema = z.object({
+  id: cptFieldId,
+  label: z.string().trim().min(1).max(80),
+  type: z.enum(['text', 'number', 'price', 'boolean', 'select', 'date', 'url', 'image', 'gallery', 'file']),
+  required: z.boolean().default(false),
+  options: z.array(z.string().trim().min(1)).max(100).optional(),
+  showOnList: z.boolean().default(false),
+}).strict().superRefine((field, ctx) => {
+  if (field.type === 'select' && !field.options?.length) {
+    ctx.addIssue({ code: 'custom', path: ['options'], message: '選單欄位必須提供至少一個選項。' });
+  }
+  if (field.type !== 'select' && field.options?.length) {
+    ctx.addIssue({ code: 'custom', path: ['options'], message: '只有 select 欄位可設定 options。' });
+  }
+  if (field.options && new Set(field.options).size !== field.options.length) {
+    ctx.addIssue({ code: 'custom', path: ['options'], message: '選單值不可重複。' });
+  }
+});
+export const contentTypeSchema = z.object({
+  id: cptId,
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(300).default(''),
+  indexable: z.boolean().default(true),
+  fields: z.array(cptFieldSchema).max(40).default([]),
+}).strict().superRefine((type, ctx) => {
+  const ids = new Set<string>();
+  for (const [i, field] of type.fields.entries()) {
+    if (ids.has(field.id)) ctx.addIssue({ code: 'custom', path: ['fields', i, 'id'], message: 'CPT 欄位 ID 重複。' });
+    ids.add(field.id);
+  }
+});
+const cptValue = z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]);
+export const cptSchema = z.object({
+  ...base,
+  type: cptId,
+  fields: z.record(cptFieldId, cptValue).default({}),
+  publishedAt: date.optional(),
+  updatedAt: date.optional(),
+}).strict().refine(p => !p.updatedAt || !p.publishedAt || p.updatedAt >= p.publishedAt,
+  '更新日期不可早於發布日期。');
+
+
 export const taxonomySchema = z.object({
   id: segment,
   slug: segment,
@@ -112,6 +157,7 @@ export const siteSchema = z.object({
   sitemap: z.object({ maxUrls: z.number().int().min(1).max(50000).default(200) }).strict().prefault({ maxUrls: 200 }),
   minArchiveItems: z.number().int().min(2).default(2),
   blogIndexable: z.boolean().default(true),
+  contentTypes: z.array(contentTypeSchema).max(30).default([]),
   // 曾經被拿來當主分類的 Blog 入口；新版只負責 301 歷史轉址，不是分類。
   blogLegacyPaths: z.array(z.string().regex(/^\/[\p{L}\p{N}_-]+\/$/u)).default([]),
   // 建置時計算推薦。正文已有內部連結時會佔用名額，不會重複推薦。
@@ -143,6 +189,13 @@ export const siteSchema = z.object({
     cdnBase: z.string().refine((s) => !s || (s.startsWith('https://') && !/[?#]/.test(s))).default(''),
   }).strict(),
 }).strict().superRefine((site, ctx) => {
+  const reserved = new Set(['blog','site','post','posts','page','pages','tag','tags','category','categories','topics','sitemap','404','assets']);
+  const typeIds = new Set<string>();
+  for (const [i, type] of site.contentTypes.entries()) {
+    if (reserved.has(type.id)) ctx.addIssue({ code: 'custom', path: ['contentTypes', i, 'id'], message: 'CPT 類型代碼與系統保留字衝突。' });
+    if (typeIds.has(type.id)) ctx.addIssue({ code: 'custom', path: ['contentTypes', i, 'id'], message: 'CPT 類型代碼不可重複。' });
+    typeIds.add(type.id);
+  }
   if (site.storage && !site.media.cdnBase) {
     ctx.addIssue({ code: 'custom', path: ['media', 'cdnBase'], message: '使用 S3 儲存時必須設定圖片 CDN 網址。' });
   } else if (site.storage) {
@@ -153,6 +206,8 @@ export const siteSchema = z.object({
 export type Site = z.infer<typeof siteSchema>;
 export type PostData = z.infer<typeof postSchema>;
 export type PageData = z.infer<typeof pageSchema>;
+export type CptData = z.infer<typeof cptSchema>;
+export type ContentTypeDefinition = z.infer<typeof contentTypeSchema>;
 export type Taxonomy = z.infer<typeof taxonomySchema>;
 export type Topic = z.infer<typeof topicSchema>;
 export type Cover = z.infer<typeof imageSchema>;

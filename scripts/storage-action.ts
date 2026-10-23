@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { storageFormFromEndpointPreset } from '../src/lib/storage-endpoint-presets';
-import { normalizeCdnPrefix, resolveStorageConnection } from '../src/lib/storage-providers';
+import { resolveStorageConnection } from '../src/lib/storage-providers';
 import { planStorageConfiguration } from './lib/storage-config';
 import { probeS3Storage, type StorageProbeResult } from './lib/storage-probe';
 import type { Site } from '../src/lib/schema';
@@ -24,7 +24,7 @@ if (!Array.isArray(manifest.uploads)) throw new Error('媒體清單格式不正�
 
 const form = storageFormFromEndpointPreset({
   preset: get('ENDPOINT_PRESET'),
-  customProvider: get('CUSTOM_PROVIDER') || 'other-s3',
+  customProvider: get('CUSTOM_PROVIDER'),
   endpoint: get('ENDPOINT'),
   region: get('REGION'),
   accountId: get('ACCOUNT_ID'),
@@ -32,7 +32,6 @@ const form = storageFormFromEndpointPreset({
   cdnUrl: get('CDN_URL'),
 });
 const connection = resolveStorageConnection(form);
-const cdnBase = normalizeCdnPrefix(form.cdnUrl);
 let next: Site | undefined;
 let result: StorageProbeResult;
 try {
@@ -41,12 +40,13 @@ try {
     bucket: form.bucket,
     preferredBucket: raw.media?.bucket,
     domain: raw.domain,
-    cdnBase,
+    cdnBase: form.cdnUrl,
+    useB2PublicUrl: get('B2_PUBLIC_URL') === 'enabled',
     accessKeyId,
     secretAccessKey,
-    onBucketSelected: bucket => {
-      // 驗證既有圖片安全約束，必須早於 S3 PutObject。
-      next = planStorageConfiguration(raw, { ...form, bucket }, manifest.uploads!.length);
+    onBucketSelected: (bucket, cdnBase) => {
+      // 自訂 CDN 優先；B2 原生公開網址需明確開啟，驗證後才儲存。
+      next = planStorageConfiguration(raw, { ...form, bucket, cdnUrl: cdnBase }, manifest.uploads!.length);
     },
   });
 } catch (error) {
@@ -62,6 +62,8 @@ const summary = [
   '- S3 供應商：' + connection.provider,
   '- S3 Endpoint：' + connection.endpoint,
   '- Bucket：' + result.bucket,
+  '- 實際 CDN 前綴：' + result.cdnBase,
+  '- CDN 模式：' + (form.cdnUrl ? '使用表單填寫的自訂 CDN（優先）' : '使用明確啟用的 B2 原生公開下載網址'),
   '- 列桶結果：' + (result.listedBuckets === null ? '無列桶權限或服務不支援；已改為直接驗證指定桶'
     : result.listedBuckets.length + ' 個可列出的 Bucket'),
   '- Bucket 權限：' + acl + '（僅 ACL 資訊，不等於最終網際網路可見性）',

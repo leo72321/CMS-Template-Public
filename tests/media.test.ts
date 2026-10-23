@@ -6,10 +6,10 @@ import { prepareMedia } from '../scripts/lib/media';
 import { uploadB2, type Upload } from '../scripts/lib/b2';
 import { siteSchema } from '../src/lib/schema';
 const site = siteSchema.parse({ domain: 'site.example.org', title: '測試', description: '說明', author: '作者', media: { bucket: 'wordpress-cdn' } });
-test('圖片會產生三種 WebP 尺寸與分享圖片，中文路徑只編碼一次', async () => {
+test('圖片只產生單尺寸 WebP 與分享圖片，中文路徑只編碼一次', async () => {
   const image = await sharp({ create: { width: 1600, height: 900, channels: 4, background: '#287655' } }).png().toBuffer();
   const output = await prepareMedia(image, site, '/分類/文章/', 'cover', true);
-  assert.deepEqual(output.filter(o => o.contentType === 'image/webp').map(o => o.width), [480, 960, 1440]);
+  assert.deepEqual(output.filter(o => o.contentType === 'image/webp').map(o => o.width), [1440]);
   assert.equal(output.at(-1)!.width, 1200); assert.equal(output.at(-1)!.height, 630);
   assert.ok(output[0].objectName.startsWith('site.example.org/分類/文章/'));
   assert.ok(output[0].url.startsWith('https://cdn.site.example.org/file/wordpress-cdn/site.example.org/%E5%88%86%E9%A1%9E/'));

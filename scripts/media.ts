@@ -5,7 +5,6 @@ import matter from 'gray-matter';
 import { readInput, run } from './lib/content';
 import { loadSite } from '../src/lib/settings';
 import { segment } from '../src/lib/schema';
-import { pathFor } from '../src/lib/model';
 import { prepareMedia } from './lib/media';
 import { uploadB2, type Receipt } from './lib/b2';
 import { uploadS3 } from './lib/s3';
@@ -16,14 +15,15 @@ run(async () => {
   const site = loadSite();
   if (site.domain === 'example.com') throw new Error('請先執行 site:init 設定自己的網域。');
   const input = readInput();
-  const doc = [...input.posts, ...input.pages].find(d => d.data.uid === values.uid);
+  const doc = [...input.posts, ...input.pages, ...(input.cpts ?? [])].find(d => d.data.uid === values.uid);
   if (!doc) throw new Error(`找不到 uid：${values.uid}`);
   const name = segment.parse(values.cover ? 'cover' : values.name);
   const original = readFileSync(doc.file, 'utf8');
   const parsed = matter(original);
   const marker = `<!-- 圖片:${name} -->`;
   if (!values.cover && parsed.content.split(marker).length !== 2) throw new Error(`請在內文放入唯一一個 ${marker} 占位符，再執行指令。`);
-  const items = await prepareMedia(values.file, site, pathFor(doc, input.categories), name, !!values.cover);
+  const mediaKind = doc.kind === 'post' ? 'blog' : doc.kind === 'page' ? 'site' : doc.data.type;
+  const items = await prepareMedia(values.file, site, '/' + mediaKind + '/' + doc.data.uid + '/', name, !!values.cover);
   if (values['dry-run']) { console.log(JSON.stringify({ 說明: '僅預覽，尚未上傳或更新文章。', 圖片: items.map(({ bytes, ...item }) => ({ ...item, bytes: bytes.length })) }, null, 2)); return; }
   let receipts: Receipt[];
   if (site.storage) {

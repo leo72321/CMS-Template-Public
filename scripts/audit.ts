@@ -88,7 +88,7 @@ run(() => {
   const expectedFileNames = new Set(sitemapParts.map(p => p.filename));
   const actualFileNames = files(sitemapsDir)
     .map(file => relative(sitemapsDir, file).split(sep).join('/'))
-    .filter(name => /^(?:posts|pages|categories|tags)-[0-9]{3,}\.xml$/.test(name));
+    .filter(name => /^[a-z][a-z0-9-]*-[0-9]{3,}\.xml$/.test(name));
   if (actualFileNames.length !== expectedFileNames.size ||
       actualFileNames.some(name => !expectedFileNames.has(name))) {
     errors.push('Sitemap 子檔案缺少、過期或輸出多餘 XML。');

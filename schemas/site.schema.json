@@ -272,6 +272,86 @@
           "description": "每份 XML Sitemap 最多包含的 URL 數；預設 200。不影響前台文章分頁 pageSize。"
         }
       }
+    },
+    "contentTypes": {
+      "type": "array",
+      "maxItems": 30,
+      "description": "自訂文章類型 CPT，cars / houses / products 等，獨立於 Blog；詳見 docs/CPT自訂內容.md",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{1,39}$",
+            "description": "不可更改的類型代碼，例如 cars"
+          },
+          "name": {
+            "type": "string",
+            "description": "類型名稱"
+          },
+          "description": {
+            "type": "string"
+          },
+          "indexable": {
+            "type": "boolean"
+          },
+          "fields": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "label",
+                "type"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "number",
+                    "price",
+                    "boolean",
+                    "select",
+                    "date",
+                    "url",
+                    "image",
+                    "gallery",
+                    "file"
+                  ]
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                },
+                "showOnList": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

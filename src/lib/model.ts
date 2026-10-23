@@ -1,16 +1,18 @@
-import type { Site, PostData, PageData, Taxonomy, Topic } from './schema';
+import type { Site, PostData, PageData, CptData, ContentTypeDefinition, Taxonomy, Topic } from './schema';
+import { validateCptFields } from './cpt';
 import { manageRedirects, type RedirectHistory } from './redirect-manager';
 
 export type Post = { data: PostData; body: string; file: string; kind: 'post' };
 export type Page = { data: PageData; body: string; file: string; kind: 'page' };
-export type Document = Post | Page;
+export type Cpt = { data: CptData; body: string; file: string; kind: 'cpt' };
+export type Document = Post | Page | Cpt;
 export type Route = {
   path: string; title: string; description: string;
-  kind: 'home' | 'blog' | 'post' | 'page' | 'category' | 'tag';
-  noindex: boolean; document?: Document; posts?: Post[]; taxonomy?: Taxonomy;
+  kind: 'home' | 'blog' | 'post' | 'page' | 'category' | 'tag' | 'cpt' | 'cpt-index';
+  noindex: boolean; document?: Document; posts?: Post[]; cpts?: Cpt[]; contentType?: ContentTypeDefinition; taxonomy?: Taxonomy;
   page?: number; totalPages?: number; base?: string;
 };
-export type Input = { posts: Post[]; pages: Page[]; categories: Taxonomy[]; tags: Taxonomy[]; topics: Topic[] };
+export type Input = { posts: Post[]; pages: Page[]; cpts?: Cpt[]; categories: Taxonomy[]; tags: Taxonomy[]; topics: Topic[] };
 export const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
 export const normalizePath = (path: string) => {
   const decoded = decodeURIComponent(path).normalize('NFC');
@@ -25,7 +27,7 @@ export const postPath = (p: Post, categories: Taxonomy[]) => {
   if (!category) throw new Error(`${p.file}：分類 ${p.data.category} 不存在。`);
   return `/${category.slug}/${p.data.slug}/`;
 };
-export const pathFor = (d: Document, categories: Taxonomy[]) => d.kind === 'post' ? postPath(d as Post, categories) : `/${d.data.slug}/`;
+export const pathFor = (d: Document, categories: Taxonomy[]) => d.kind === 'post' ? postPath(d, categories) : d.kind === 'cpt' ? `/${d.data.type}/${d.data.slug}/` : `/${d.data.slug}/`;
 export const todayTaipei = (now = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(now);
@@ -38,7 +40,7 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   unique(input.categories, '分類'); unique(input.tags, '標籤'); unique(input.topics, '主題');
   const legacyBlogPaths = [...new Set(site.blogLegacyPaths.map(normalizePath))];
   if (legacyBlogPaths.length !== site.blogLegacyPaths.length) errors.push('blogLegacyPaths 不可重複填寫同一舊網址。');
-  const all = [...input.posts, ...input.pages];
+  const all: Document[] = [...input.posts, ...input.pages, ...(input.cpts ?? [])];
   const uids = new Set<string>();
   for (const d of all) {
     if (uids.has(d.data.uid)) errors.push(`內容 uid 重複：${d.data.uid}`);
@@ -50,10 +52,23 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
     for (const tag of p.data.tags) if (!input.tags.some(t => t.id === tag)) errors.push(`${p.file}：未知標籤 ${tag}`);
     if (p.data.topic && !input.topics.some(t => t.id === p.data.topic)) errors.push(`${p.file}：未知主題 ${p.data.topic}`);
   }
-  const published = (d: Document) => !d.data.draft && (d.kind !== 'post' || (d as Post).data.publishedAt <= todayTaipei(now));
+  for (const d of input.cpts ?? []) {
+    const type = site.contentTypes.find(t => t.id === d.data.type);
+    if (!type) errors.push(d.file + '：沒有註冊 CPT 類型 ' + d.data.type);
+    else {
+      try { validateCptFields(d.data, type); }
+      catch (error) { errors.push(d.file + '：' + String(error)); }
+    }
+    if (!d.file.replaceAll('\\', '/').startsWith('content/cpt/' + d.data.type + '/')) {
+      errors.push(d.file + '：CPT 內容檔案必須位於 content/cpt/' + d.data.type + '/');
+    }
+  }
+  const published = (d: Document) => !d.data.draft && (d.kind === 'post' ? d.data.publishedAt <= todayTaipei(now)
+    : d.kind === 'cpt' ? !d.data.publishedAt || d.data.publishedAt <= todayTaipei(now) : true);
   const posts = input.posts.filter(published).sort((a, b) => b.data.publishedAt.localeCompare(a.data.publishedAt) || a.data.uid.localeCompare(b.data.uid));
   const pages = input.pages.filter(published);
-  const visible = [...posts, ...pages];
+  const cpts = (input.cpts ?? []).filter(published).sort((a, b) => (b.data.publishedAt ?? '').localeCompare(a.data.publishedAt ?? '') || a.data.uid.localeCompare(b.data.uid));
+  const visible: Document[] = [...posts, ...pages, ...cpts];
   for (const topic of input.topics) {
     if (!all.some(d => d.data.uid === topic.hub)) errors.push(`主題 ${topic.name} 的中心頁不存在：${topic.hub}`);
     if (posts.some(p => p.data.topic === topic.id) && !visible.some(d => d.data.uid === topic.hub)) errors.push(`主題 ${topic.name} 已有公開文章，但中心頁仍是草稿或尚未到發布日。`);
@@ -72,6 +87,7 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   // 系統入口和全部已設定分類預先保留，避免草稿轉正時才產生衝突。
   for (const name of ['/', '/blog/', '/tag/', '/404/', '/sitemap.xml/', '/robots.txt/', '/_headers/', '/_redirects/']) claim(name, '系統路徑');
   for (const c of input.categories) claim(`/${c.slug}/`, `分類 ${c.name}`);
+  for (const t of site.contentTypes) claim(`/${t.id}/`, `CPT ${t.name}`);
   for (const d of all) claim(pathFor(d, input.categories), d.file);
   const add = (route: Route, claimed = false) => {
     if (!claimed) claim(route.path, route.title);
@@ -90,7 +106,21 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
     }, n === 1 && (kind === 'blog' || kind === 'category'));
   };
   archive('blog', '/blog/', '全部文章', `瀏覽${site.title}的文章與分類。`, posts);
-  for (const d of visible) add({ path: pathFor(d, input.categories), title: d.data.title, description: d.data.description, kind: d.kind, document: d, noindex: !canIndex || !eligible(d) }, true);
+  for (const d of visible) add({ path: pathFor(d, input.categories), title: d.data.title, description: d.data.description,
+    kind: d.kind, document: d, noindex: !canIndex || !eligible(d) || (d.kind === 'cpt' && !site.contentTypes.find(t => t.id === d.data.type)?.indexable) }, true);
+  for (const type of site.contentTypes) {
+    const members = cpts.filter(c => c.data.type === type.id);
+    const totalPages = Math.max(1, Math.ceil(members.length / site.pageSize));
+    const base = '/' + type.id + '/';
+    for (let n = 1; n <= totalPages; n++) add({
+      kind: 'cpt-index', path: n === 1 ? base : base + 'page/' + n + '/',
+      base, title: n === 1 ? type.name : type.name + '・第 ' + n + ' 頁',
+      description: type.description || '瀏覽' + type.name + '。',
+      noindex: !canIndex || !type.indexable || n > 1 || !members.some(eligible),
+      contentType: type, cpts: members.slice((n - 1) * site.pageSize, n * site.pageSize),
+      page: n, totalPages,
+    }, n === 1);
+  }
   for (const category of input.categories) {
     const items = posts.filter(p => p.data.category === category.id);
     if (items.length) archive('category', `/${category.slug}/`, category.name, category.description, items, category);
@@ -145,6 +175,6 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
     .slice(0, Math.max(0, limit))
     .map(x => x.post);
   const redirectState = manageRedirects(redirects, redirectHistory, site.redirectManagement, now);
-  return { ...input, posts, pages, routes, byPath, redirects: redirectState.redirects, redirectState, canIndex, related, site };
+  return { ...input, posts, pages, cpts, routes, byPath, redirects: redirectState.redirects, redirectState, canIndex, related, site };
 }
 export type Model = ReturnType<typeof makeModel>;

@@ -82,8 +82,20 @@ export function storageFormFromEndpointPreset(selection: EndpointSelection): Sto
   const match = Object.prototype.hasOwnProperty.call(endpointPresets, key)
     ? endpointPresets[key as keyof typeof endpointPresets] : undefined;
   if (!match) throw new Error('未知的 S3 端點預設：' + key + '。請使用下拉選單，或改選 custom。');
-  if (selection.endpoint?.trim() || selection.region?.trim()) {
-    throw new Error('已選擇 S3 端點預設，Region 與手動 Endpoint 應留空；特殊端點請選 custom。');
+  // 預設機房可以直接看到並手動填入實際 S3 API Endpoint，避免只見抽象代碼。
+  // 有手動端點時它優先於選單，但為免 B2 誤選區域，端點必須對應該區域。
+  if (selection.region?.trim()) {
+    throw new Error('選擇機房預設時 Region 自動推導，不需要另外填 Region；特殊機房請用 custom。');
+  }
+  const override = selection.endpoint?.trim();
+  if (override && match.provider === 'b2' && override !== 'https://s3.' + match.region + '.backblazeb2.com') {
+    throw new Error('B2 手動 S3 Endpoint 與選擇的機房不一致；請選擇正確機房，或使用 custom。');
+  }
+  if (override && match.provider !== 'b2' && match.provider !== 'r2') {
+    throw new Error('其他服務商若需要手動 Endpoint，請選 custom。');
+  }
+  if (override && match.provider === 'r2') {
+    throw new Error('R2 預設由 Account ID 產生 Endpoint；特殊端點請選 custom。');
   }
   if (match.provider !== 'r2' && selection.accountId?.trim()) {
     throw new Error('只有 Cloudflare R2 需要填 Account ID。');
@@ -95,5 +107,5 @@ export function storageFormFromEndpointPreset(selection: EndpointSelection): Sto
     return { ...shared, provider: 'r2', region: 'auto',
       endpoint: 'https://' + id + jurisdiction + '.r2.cloudflarestorage.com', accountId: id };
   }
-  return { ...shared, provider: match.provider, region: match.region, endpoint: ('endpoint' in match ? match.endpoint : '') };
+  return { ...shared, provider: match.provider, region: match.region, endpoint: override || ('endpoint' in match ? match.endpoint : '') };
 }
