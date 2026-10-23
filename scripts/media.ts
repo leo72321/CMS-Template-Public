@@ -56,9 +56,9 @@ run(async () => {
     records.set(receipt.url, { ...receipt, ...(receipt.url === main.url ? { variants: variants.map(i => ({ url: i.url, width: i.width })) } : {}) });
   }
   const manifest = { ...stored.manifest, uploads: [...records.values()] };
-  // 只有全部圖片通過 B2 校驗及 CDN 讀取測試，才改寫本機檔案。
+  // 只有上傳 API 成功且本次新增圖片的 CDN HEAD 連結正常，才改寫本機檔案。
   if (readFileSync(doc.file, 'utf8') !== original) throw new Error('上傳期間文章已被其他程序修改，請重新執行；這次未覆寫文章。');
   writeFileSync('content/media/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
   writeFileSync(doc.file, matter.stringify(parsed.content, parsed.data));
-  console.log(`✓ 圖片已縮圖、上傳、驗證並填回 ${doc.file}\n${main.url}\n請執行 npm run verify，再提交文章與 manifest.json。`);
+  console.log(`✓ 圖片已縮圖、上傳並檢查連結後填回 ${doc.file}\n${main.url}\n請執行 npm run verify，再提交文章與 manifest.json。`);
 });

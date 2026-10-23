@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
+import { checkMediaHead } from './media-head';
 import {
-  GetBucketAclCommand, GetObjectCommand, ListBucketsCommand, PutObjectCommand, S3Client,
+  GetBucketAclCommand, ListBucketsCommand, PutObjectCommand, S3Client,
 } from '@aws-sdk/client-s3';
 
 export type StorageProbeInput = {
@@ -18,12 +18,11 @@ export type StorageProbeResult = {
   bucket: string;
   listedBuckets: string[] | null;
   bucketAccess: 'public-acl' | 'private-acl' | 'unknown';
-  s3Read: boolean;
-  cdnRead: boolean;
+  cdnReachable: boolean;
   testUrl: string;
 };
 
-// 流程：列桶（可選）→ 選定桶 → 防遷移檢查 → 上傳 → S3 授權讀回 → CDN 匿名讀回。
+// 流程：列桶（可選）→ 選定桶 → 防遷移檢查 → 上傳 → CDN 一次 HEAD，不下載內容。
 // 不會列桶不代表不能上傳；B2 的單桶金鑰可能沒有 listAllBucketNames。
 export async function probeS3Storage(
   input: StorageProbeInput,
@@ -75,9 +74,9 @@ export async function probeS3Storage(
       // 某些 S3 相容服務未實作 GetBucketAcl，或金鑰無查看 ACL 的權限。
     }
 
-    const bytes = Buffer.from('CMS storage connectivity check v2\n', 'utf8');
-    const expected = createHash('sha256').update(bytes).digest('hex');
-    const relative = '.cms-healthcheck/' + expected.slice(0, 16) + '.txt';
+    // 固定小檔案僅用於確認 Bucket 可寫、CDN 連結不死；不下載內容。
+    const bytes = Buffer.from('CMS S3 connectivity check v3\n', 'utf8');
+    const relative = '.cms-healthcheck/link-check-v3.txt';
     const key = input.domain + '/' + relative;
     const url = input.cdnBase.replace(/\/+$/, '') + '/' + key.split('/').map(encodeURIComponent).join('/');
     await client.send(new PutObjectCommand({
@@ -85,28 +84,14 @@ export async function probeS3Storage(
       ContentType: 'text/plain; charset=utf-8',
       CacheControl: 'public, max-age=3600',
     }));
-    const downloaded = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-    if (!downloaded.Body) throw new Error('S3 上傳成功但授權下載回傳空內容。');
-    const s3Bytes = Buffer.from(await downloaded.Body.transformToByteArray());
-    if (createHash('sha256').update(s3Bytes).digest('hex') !== expected) {
-      throw new Error('S3 下載內容 SHA-256 與上傳檔案不一致。');
+    let cdnReachable = false;
+    try {
+      await checkMediaHead(url, 'text/plain', fetcher);
+      cdnReachable = true;
+    } catch {
+      // 公開連結不通時不寫入設定，並由呼叫端提供清楚的 CDN/私桶說明。
     }
-
-    let cdnRead = false;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const response = await fetcher(url, {
-          redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(30000),
-        });
-        if (response.ok) {
-          const data = Buffer.from(await response.arrayBuffer());
-          cdnRead = createHash('sha256').update(data).digest('hex') === expected;
-        }
-      } catch { /* CDN 尚未傳播或權限阻擋，稍後重試。 */ }
-      if (cdnRead) break;
-      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 1200));
-    }
-    return { bucket, listedBuckets, bucketAccess, s3Read: true, cdnRead, testUrl: url };
+    return { bucket, listedBuckets, bucketAccess, cdnReachable, testUrl: url };
   } finally {
     if (!options.client) client.destroy();
   }

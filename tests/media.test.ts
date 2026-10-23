@@ -31,23 +31,24 @@ function mock(options: { sha?: string; cdn?: number; capability?: string[]; pref
     if (path.includes('b2_authorize_account')) return Response.json({ authorizationToken: 'auth-token', apiInfo: { storageApi: { apiUrl: options.api ?? 'https://api001.backblazeb2.com', allowed: { capabilities: options.capability ?? ['writeFiles'], buckets: [{ id: 'bucket', name: 'wordpress-cdn' }], namePrefix: options.prefix } } } });
     if (path.includes('b2_get_upload_url')) return Response.json({ uploadUrl: 'https://pod-001.backblazeb2.com/upload', authorizationToken: 'upload-token' });
     if (path.includes('/upload')) return Response.json({ fileName: item.objectName, contentSha1: options.sha ?? digest, contentLength: bytes.length, fileId: 'file-id' });
-    return new Response(bytes, { status: options.cdn ?? 200 });
+    return new Response(null, { status: options.cdn ?? 200, headers: { 'content-type': 'image/webp' } });
   }) as typeof fetch;
   return { fetcher, calls };
 }
 const credentials = { keyId: 'test-id', key: 'test-secret', bucketId: 'bucket' };
-test('B2 v4 完整流程：授權、取得上傳網址、校驗及 CDN 讀取', async () => {
+test('B2 v4 上傳成功後只 HEAD 檢查連結，不下載圖片', async () => {
   const { fetcher, calls } = mock();
   const receipts = await uploadB2([item], credentials, fetcher);
   assert.equal(receipts[0].sha1, digest); assert.equal(receipts[0].fileId, 'file-id');
   assert.ok(receipts[0].verifiedAt); assert.equal(calls.length, 4);
+  assert.equal(calls.at(-1)?.init?.method, 'HEAD');
   assert.equal((calls[2].init!.headers as Record<string, string>)['X-Bz-File-Name'], 'site.example.org/%E5%88%86%E9%A1%9E/cover.webp');
   assert.equal((calls[2].init!.headers as Record<string, string>)['Content-Length'], String(bytes.length));
   assert.equal(JSON.stringify(receipts).includes('test-secret'), false);
 });
-test('B2 校驗錯誤或 CDN 404 時不產生成功收據', async () => {
+test('B2 上傳 API 回傳錯誤或 CDN HEAD 404 時不產生成功收據', async () => {
   await assert.rejects(uploadB2([item], credentials, mock({ sha: 'bad' }).fetcher), /校驗碼不一致/);
-  await assert.rejects(uploadB2([item], credentials, mock({ cdn: 404 }).fetcher), /文章未更新/);
+  await assert.rejects(uploadB2([item], credentials, mock({ cdn: 404 }).fetcher), /HTTP 404/);
 });
 test('權限與前綴不足時提前擋下，不洩漏金鑰', async () => {
   await assert.rejects(uploadB2([item], credentials, mock({ capability: [] }).fetcher), /writeFiles/);

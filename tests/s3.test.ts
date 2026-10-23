@@ -23,7 +23,7 @@ test('S3 網站沒有 CDN 或含有金鑰的端點不得通過設定驗證', () 
   assert.throws(() => siteSchema.parse({ ...valid, storage: { provider: 'r2', endpoint: 'https://s3.example.com/path', region: 'auto' } }), /S3/);
 });
 
-test('S3 PutObject 上傳後由 CDN 實際校驗下載內容，產生可追溯收據', async () => {
+test('S3 PutObject 成功後只 HEAD 檢查網址，不下載圖片，產生上傳收據', async () => {
   const bytes = Buffer.from('Hello S3 and B2!');
   const key = 'example.com/blog/article/cover-abc.webp';
   const url = 'https://cdn.example.com/' + key;
@@ -31,10 +31,10 @@ test('S3 PutObject 上傳後由 CDN 實際校驗下載內容，產生可追溯�
   const client = {
     send: async (command: PutObjectCommand) => { calls.push(command); return { ETag: '"etag"' }; },
   } as unknown as S3Client;
-  const requested: string[] = [];
-  const fetcher: typeof fetch = async (request) => {
-    requested.push(String(request));
-    return new Response(bytes, { status: 200 });
+  const requested: { url: string; method: string }[] = [];
+  const fetcher: typeof fetch = async (request, init) => {
+    requested.push({ url: String(request), method: init?.method ?? 'GET' });
+    return new Response(null, { status: 200, headers: { 'content-type': 'image/webp' } });
   };
   const receipts = await uploadS3([{
     bytes, objectName: key, url, contentType: 'image/webp', width: 100, height: 80,
@@ -50,9 +50,18 @@ test('S3 PutObject 上傳後由 CDN 實際校驗下載內容，產生可追溯�
   assert.equal(calls[0].input.Key, key);
   assert.equal(calls[0].input.ContentType, 'image/webp');
   assert.equal(calls[0].input.CacheControl, 'public, max-age=31536000, immutable');
-  assert.deepEqual(requested, [url]);
+  assert.deepEqual(requested, [{ url, method: 'HEAD' }]);
   assert.equal(receipts[0].fileId, 'cms-media/' + key);
   assert.equal(receipts[0].bytes, bytes.length);
+});
+
+test('S3 上傳成功但圖片網址 404 或回傳 HTML 時不更新收據', async () => {
+  const bytes = Buffer.from('image content');
+  const upload = { bytes, objectName: 'example.com/img.webp', url: 'https://cdn.example.com/img.webp', contentType: 'image/webp', width: 10, height: 10 };
+  const config = { endpoint: 'https://s3.us-west-002.backblazeb2.com', region: 'us-west-002', bucket: 'test-bucket', accessKeyId: 'test', secretAccessKey: 'test' };
+  const client = { send: async () => ({}) } as unknown as S3Client;
+  await assert.rejects(uploadS3([upload], config, async () => new Response(null, { status: 404 }), client), /HTTP 404/);
+  await assert.rejects(uploadS3([upload], config, async () => new Response(null, { status: 200, headers: { 'content-type': 'text/html' } }), client), /不是圖片/);
 });
 
 test('不合法的 S3 端點在執行任何上傳前就被拒絕', async () => {

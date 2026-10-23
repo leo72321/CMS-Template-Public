@@ -13,10 +13,10 @@ jobs:
     name: 內容、SEO 與效能檢查
     runs-on: ubuntu-latest
     steps:
-      - name: 取得網站原始碼（保留媒體差異基準）
+      - name: 取得網站原始碼
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 1
       - name: 設定 Node.js 執行環境
         uses: actions/setup-node@v4
         with:
@@ -28,20 +28,6 @@ jobs:
         run: npm run docs:check
       - name: 型別、測試、建置與網站驗收
         run: npm run verify
-      - name: 取得媒體差異比較基準（只抓必要的 Git Commit）
-        env:
-          MEDIA_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        shell: bash
-        run: |
-          if [[ "$MEDIA_BASE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] && [[ ! "$MEDIA_BASE_SHA" =~ ^0+$ ]]; then
-            if ! git cat-file -e "$MEDIA_BASE_SHA^{commit}" 2>/dev/null; then
-              git fetch --no-tags --depth=1 origin "$MEDIA_BASE_SHA"
-            fi
-          fi
-      - name: 媒體增量校驗（本次新增或變更，舊圖不再全部下載）
-        env:
-          MEDIA_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: npm run media:verify
       - name: 保存可下載的中文驗收報表
         if: always()
         uses: actions/upload-artifact@v4

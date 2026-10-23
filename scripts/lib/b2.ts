@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { checkMediaHead } from './media-head';
 export type Upload = { objectName: string; bytes: Buffer; contentType: string; width: number; height: number; url: string };
 export type Receipt = { objectName: string; url: string; fileId: string; bytes: number; sha1: string; width: number; height: number; verifiedAt: string; contentType: string };
 const sha1 = (bytes: Buffer) => createHash('sha1').update(bytes).digest('hex');
@@ -32,8 +33,8 @@ export async function uploadB2(items: Upload[], credentials: { keyId: string; ke
       'X-Bz-Info-b2-cache-control': 'public, max-age=31536000, immutable',
     }, body: new Uint8Array(item.bytes) });
     if (uploaded.contentSha1 !== digest || uploaded.fileName !== item.objectName || Number(uploaded.contentLength) !== item.bytes.length || !uploaded.fileId) throw new Error('B2 回傳的檔案名稱、大小或校驗碼不一致，文章未更新。');
-    const cdn = await fetcher(item.url, { signal: AbortSignal.timeout(60000), redirect: 'error' });
-    if (!cdn.ok || sha1(Buffer.from(await cdn.arrayBuffer())) !== digest) throw new Error(`B2 已上傳，但 CDN 尚無法讀到正確圖片。文章未更新，請確認 DNS/CDN 後重跑：${item.url}`);
+    // B2 已回傳上傳成功；HEAD 只確認連結不死圖，絕不下載整張檔案。
+    await checkMediaHead(item.url, item.contentType, fetcher);
     receipt.push({ objectName: item.objectName, url: item.url, fileId: uploaded.fileId, bytes: item.bytes.length, sha1: digest, width: item.width, height: item.height, contentType: item.contentType, verifiedAt: new Date().toISOString() });
   }
   return receipt;

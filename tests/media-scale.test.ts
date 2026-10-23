@@ -57,14 +57,14 @@ test('Markdown 一次掃描解析遠端 URL，封面與 srcset 尺寸皆納入�
   assert.ok(!used.has('https://other.example.com/not-cms.webp'));
 });
 
-test('增量模式只重新下載新收據與內容已變的檔案；舊圖不需要再付一次網路成本', async () => {
+test('增量模式只挑選變動收據；手動檢查只發 HEAD，不下載圖片', async () => {
   const a = row('a'), b = row('b'), c = row('c');
   const current = new Map([[a.url, a], [b.url, b], [c.url, c]]);
   const previous = new Map([[a.url, { ...a }], [b.url, { ...b, sha1: '0'.repeat(40) }]]);
   const plan = planMediaVerification(new Set(current.keys()), current, previous, { kind: 'changed' });
   assert.deepEqual(plan.selected.map(x => x.url), [b.url, c.url]);
   let calls = 0;
-  const fetcher = (async () => { calls++; return new Response(payload, { status: 200 }); }) as typeof fetch;
+  const fetcher = (async (_url: string | URL | Request, init?: RequestInit) => { assert.equal(init?.method, 'HEAD'); calls++; return new Response(null, { status: 200, headers: { 'content-type': 'image/webp' } }); }) as typeof fetch;
   assert.equal(await verifyRemoteMedia(plan.selected, fetcher), 2);
   assert.equal(calls, 2);
   const repeat = planMediaVerification(new Set(current.keys()), current, current, { kind: 'changed' });
@@ -86,18 +86,19 @@ test('完整與輪替批次仍可獨立執行，預設驗證 metadata 並保留 
   assert.throws(() => planMediaVerification(used, wrong, receipts), /缺少有效雜湊/);
 });
 
-test('CDN 不可讀或檔案內容遭替換時停止發佈，併發固定有界', async () => {
+test('手動 HEAD 發現死圖或 HTML 假圖片時失敗，併發固定有界', async () => {
   const two = [row('0'), row('1'), row('2'), row('3'), row('4')];
   let active = 0, high = 0;
-  const fetcher = (async () => {
+  const fetcher = (async (_url: string | URL | Request, init?: RequestInit) => {
+    assert.equal(init?.method, 'HEAD');
     active++; high = Math.max(high, active);
     await Promise.resolve();
     active--;
-    return new Response(payload, { status: 200 });
+    return new Response(null, { status: 200, headers: { 'content-type': 'image/webp' } });
   }) as typeof fetch;
   await verifyRemoteMedia(two, fetcher, 2);
   assert.ok(high <= 2);
-  await assert.rejects(verifyRemoteMedia([row('a')], async () => new Response('tampered', { status: 200 })), /校驗失敗/);
-  await assert.rejects(verifyRemoteMedia([row('a')], async () => new Response('', { status: 404 })), /校驗失敗/);
+  await assert.rejects(verifyRemoteMedia([row('a')], async () => new Response(null, { status: 200, headers: { 'content-type': 'text/html' } })), /連結檢查失敗/);
+  await assert.rejects(verifyRemoteMedia([row('a')], async () => new Response(null, { status: 404 })), /連結檢查失敗/);
   await assert.rejects(verifyRemoteMedia(two, fetcher, 9), /不得超過 8/);
 });
