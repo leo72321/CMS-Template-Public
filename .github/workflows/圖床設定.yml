@@ -2,11 +2,51 @@ name: 圖床設定精靈
 on:
   workflow_dispatch:
     inputs:
-      provider:
-        description: 'S3 圖床服務商（共用 AWS SDK，以下選單有官方常見 Endpoint 預設）'
+      endpoint_preset:
+        description: '必選：S3 供應商＋機房的 Endpoint 預設；自訂機房選 custom'
         required: true
         type: choice
-        default: b2
+        default: choose-endpoint
+        options:
+          - choose-endpoint
+          - b2-us-west-001
+          - b2-us-west-004
+          - b2-us-east-005
+          - b2-eu-central-003
+          - r2-standard
+          - r2-eu
+          - r2-us
+          - r2-fedramp
+          - aws-ap-east-2
+          - aws-ap-northeast-1
+          - aws-ap-southeast-1
+          - aws-ap-east-1
+          - aws-us-east-1
+          - aws-eu-central-1
+          - wasabi-ap-northeast-1
+          - wasabi-ap-southeast-1
+          - wasabi-us-east-1
+          - wasabi-eu-central-1
+          - do-sgp1
+          - do-nyc3
+          - do-ams3
+          - do-fra1
+          - hetzner-fsn1
+          - hetzner-nbg1
+          - hetzner-hel1
+          - scaleway-fr-par
+          - scaleway-nl-ams
+          - scaleway-pl-waw
+          - scaleway-it-mil
+          - akamai-us-east
+          - akamai-us-lax
+          - akamai-jp-tyo-3
+          - custom
+      custom_provider:
+        description: '只有 endpoint_preset=custom 才需選擇原始儲存供應商'
+        required: false
+        type: choice
+        default: other-s3
         options:
           - b2
           - r2
@@ -18,15 +58,15 @@ on:
           - akamai
           - other-s3
       region:
-        description: 'B2 us-west-004；AWS ap-east-1；Spaces sgp1；R2 留空=auto'
+        description: '僅 custom 必填：手動 Region，例如 B2 us-west-004、R2 auto'
         required: false
         type: string
       endpoint:
-        description: '可選：手動指定完整 S3 HTTPS Endpoint；Akamai／Other S3 必填'
+        description: '僅 custom 必填：手動完整 HTTPS S3 Endpoint'
         required: false
         type: string
       account_id:
-        description: '只有 Cloudflare R2 需要：Account ID（32位）；若已填 Endpoint 可留空'
+        description: '選 R2 端點預設時填 32 位 Account ID；custom 手動 Endpoint 可省略'
         required: false
         type: string
       bucket:
@@ -60,7 +100,8 @@ jobs:
       - run: npm ci
       - name: 套用供應商預設並驗證 CDN URL／媒體歷史相容性
         env:
-          STORAGE_PROVIDER: ${{ inputs.provider }}
+          STORAGE_ENDPOINT_PRESET: ${{ inputs.endpoint_preset }}
+          STORAGE_CUSTOM_PROVIDER: ${{ inputs.custom_provider }}
           STORAGE_REGION: ${{ inputs.region }}
           STORAGE_ENDPOINT: ${{ inputs.endpoint }}
           STORAGE_ACCOUNT_ID: ${{ inputs.account_id }}

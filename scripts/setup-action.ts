@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { siteSchema } from '../src/lib/schema';
 import { planStorageConfiguration } from './lib/storage-config';
-import type { StorageForm } from '../src/lib/storage-providers';
+import { storageFormFromEndpointPreset } from '../src/lib/storage-endpoint-presets';
 
 if (process.env.GITHUB_REPOSITORY === 'leo72321/CMS-Template-Public') {
   throw new Error('請先使用公開模板複製成自己的私人倉庫，再執行初始化精靈。');
@@ -20,14 +20,15 @@ if (raw.domain !== 'example.com' && raw.domain !== domain) {
 const manifest = JSON.parse(readFileSync('content/media/manifest.json', 'utf8')) as { uploads?: unknown[] };
 if (!Array.isArray(manifest.uploads)) throw new Error('媒體清單格式不正確。');
 const basic = siteSchema.parse({ ...raw, domain, title: env('TITLE'), description: env('DESCRIPTION'), author: env('AUTHOR') });
-const form: StorageForm = {
-  provider: env('STORAGE') as StorageForm['provider'],
+const form = storageFormFromEndpointPreset({
+  preset: env('ENDPOINT_PRESET'),
+  customProvider: env('CUSTOM_PROVIDER'),
   region: env('REGION'),
   endpoint: env('ENDPOINT'),
   accountId: env('ACCOUNT_ID'),
   bucket: env('BUCKET'),
   cdnUrl: env('CDN_URL'),
-};
+});
 const next = planStorageConfiguration(basic, form, manifest.uploads.length);
 writeFileSync('site.config.json', JSON.stringify(next, null, 2) + '\n');
 const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/reports.ts'], { stdio: 'inherit' });

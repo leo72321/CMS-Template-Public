@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { planStorageConfiguration } from './lib/storage-config';
-import type { StorageForm } from '../src/lib/storage-providers';
+import { storageFormFromEndpointPreset } from '../src/lib/storage-endpoint-presets';
 import { mediaBase } from '../src/lib/settings';
 
 if (process.env.GITHUB_REPOSITORY === 'leo72321/CMS-Template-Public') {
@@ -14,14 +14,15 @@ const manifestFile = 'content/media/manifest.json';
 if (!existsSync(manifestFile)) throw new Error('找不到媒體清單：' + manifestFile);
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8')) as { uploads?: unknown[] };
 if (!Array.isArray(manifest.uploads)) throw new Error('媒體清單格式不正確，拒絕更改設定。');
-const form: StorageForm = {
-  provider: get('PROVIDER') as StorageForm['provider'],
+const form = storageFormFromEndpointPreset({
+  preset: get('ENDPOINT_PRESET'),
+  customProvider: get('CUSTOM_PROVIDER'),
   endpoint: get('ENDPOINT'),
   region: get('REGION'),
   accountId: get('ACCOUNT_ID'),
   bucket: get('BUCKET'),
   cdnUrl: get('CDN_URL'),
-};
+});
 const next = planStorageConfiguration(raw, form, manifest.uploads.length);
 writeFileSync('site.config.json', JSON.stringify(next, null, 2) + '\n');
 const child = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/reports.ts'], { stdio: 'inherit' });

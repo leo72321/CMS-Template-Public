@@ -18,11 +18,51 @@ on:
         description: '作者或品牌名稱'
         required: true
         type: string
-      storage:
-        description: '圖片儲存服務（統一使用 S3 相容協議）'
+      endpoint_preset:
+        description: '必選：S3 供應商＋機房的 Endpoint 預設；自訂機房選 custom'
         required: true
-        default: b2
         type: choice
+        default: choose-endpoint
+        options:
+          - choose-endpoint
+          - b2-us-west-001
+          - b2-us-west-004
+          - b2-us-east-005
+          - b2-eu-central-003
+          - r2-standard
+          - r2-eu
+          - r2-us
+          - r2-fedramp
+          - aws-ap-east-2
+          - aws-ap-northeast-1
+          - aws-ap-southeast-1
+          - aws-ap-east-1
+          - aws-us-east-1
+          - aws-eu-central-1
+          - wasabi-ap-northeast-1
+          - wasabi-ap-southeast-1
+          - wasabi-us-east-1
+          - wasabi-eu-central-1
+          - do-sgp1
+          - do-nyc3
+          - do-ams3
+          - do-fra1
+          - hetzner-fsn1
+          - hetzner-nbg1
+          - hetzner-hel1
+          - scaleway-fr-par
+          - scaleway-nl-ams
+          - scaleway-pl-waw
+          - scaleway-it-mil
+          - akamai-us-east
+          - akamai-us-lax
+          - akamai-jp-tyo-3
+          - custom
+      custom_provider:
+        description: '只有 endpoint_preset=custom 才需選擇原始儲存供應商'
+        required: false
+        type: choice
+        default: other-s3
         options:
           - b2
           - r2
@@ -34,15 +74,15 @@ on:
           - akamai
           - other-s3
       region:
-        description: 'S3 Region，如 B2 us-west-004／Spaces sgp1；R2 留空自動 auto'
+        description: '僅 custom 使用：請填 S3 Region，例如 us-west-004、auto'
         required: false
         type: string
       endpoint:
-        description: '可選 S3 API Endpoint；Akamai／Other S3 必須填'
+        description: '僅 custom 使用：請填完整 HTTPS S3 Endpoint'
         required: false
         type: string
       account_id:
-        description: '僅 Cloudflare R2 需填 32 字元 Account ID（若已填 Endpoint 可留空）'
+        description: 'R2 預設端點必填 32 位 Account ID；選 custom 可自訂 Endpoint'
         required: false
         type: string
       bucket:
@@ -76,7 +116,8 @@ jobs:
           INIT_TITLE: ${{ inputs.title }}
           INIT_DESCRIPTION: ${{ inputs.description }}
           INIT_AUTHOR: ${{ inputs.author }}
-          INIT_STORAGE: ${{ inputs.storage }}
+          INIT_ENDPOINT_PRESET: ${{ inputs.endpoint_preset }}
+          INIT_CUSTOM_PROVIDER: ${{ inputs.custom_provider }}
           INIT_ENDPOINT: ${{ inputs.endpoint }}
           INIT_REGION: ${{ inputs.region }}
           INIT_BUCKET: ${{ inputs.bucket }}
