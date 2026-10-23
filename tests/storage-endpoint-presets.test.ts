@@ -50,8 +50,8 @@ test('GitHub Actions 只保留一個 S3 圖床設定入口，包含全部端點�
   assert.match(content, /S3_SECRET_ACCESS_KEY: \$\{\{ secrets\.S3_SECRET_ACCESS_KEY \}\}/);
   assert.match(content, /run: node --import tsx scripts\/storage-action\.ts/);
   assert.doesNotMatch(content, /run: npm run verify/, '圖床設定不可以整站文章／SEO／301 驗收作為提交前置條件');
-  assert.match(content, /git add -- site\.config\.json/, '圖床成功後只應提交儲存設定');
-  assert.match(content, /git push origin HEAD:main/);
+  assert.match(content, /node --import tsx scripts\/github-save\.ts site\.config\.json/, '圖床成功後應由 GitHub API 保存網站設定');
+  assert.match(content, /GH_TOKEN: \$\{\{ github\.token \}\}/, '必須使用內建 GitHub token 而非新申請的 PAT');
   assert.doesNotMatch(content, /STORAGE_CUSTOM_PROVIDER/);
   try {
     const init = readFileSync('.github/workflows/網站初始化.yml', 'utf8');
