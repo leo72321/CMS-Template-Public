@@ -14,7 +14,7 @@ test('CPT 真正執行 Astro build，確認 Cars 列表、詳細頁、價格及 
       const name = basename(src);
       return !['.git', 'node_modules', 'dist', '.astro', '.reports', '.cache'].includes(name);
     } });
-    symlinkSync(join(origin, 'node_modules'), join(temp, 'node_modules'), 'dir');
+    symlinkSync(join(origin, 'node_modules'), join(temp, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
     const config = JSON.parse(readFileSync(join(temp,'site.config.json'),'utf8'));
     config.domain='cars.example.org';config.indexable=true;
     config.contentTypes=[{id:'cars',name:'車輛庫存',description:'公開車輛',indexable:true,
