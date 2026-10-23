@@ -1,51 +1,11 @@
-name: 圖床設定精靈
+name: 圖床設定｜09 其他／自訂 S3
 on:
   workflow_dispatch:
     inputs:
-      endpoint_preset:
-        description: '必選：S3 供應商＋機房的 Endpoint 預設；自訂機房選 custom'
-        required: true
-        type: choice
-        default: choose-endpoint
-        options:
-          - choose-endpoint
-          - b2-us-west-001
-          - b2-us-west-004
-          - b2-us-east-005
-          - b2-eu-central-003
-          - r2-standard
-          - r2-eu
-          - r2-us
-          - r2-fedramp
-          - aws-ap-east-2
-          - aws-ap-northeast-1
-          - aws-ap-southeast-1
-          - aws-ap-east-1
-          - aws-us-east-1
-          - aws-eu-central-1
-          - wasabi-ap-northeast-1
-          - wasabi-ap-southeast-1
-          - wasabi-us-east-1
-          - wasabi-eu-central-1
-          - do-sgp1
-          - do-nyc3
-          - do-ams3
-          - do-fra1
-          - hetzner-fsn1
-          - hetzner-nbg1
-          - hetzner-hel1
-          - scaleway-fr-par
-          - scaleway-nl-ams
-          - scaleway-pl-waw
-          - scaleway-it-mil
-          - akamai-us-east
-          - akamai-us-lax
-          - akamai-jp-tyo-3
-          - custom
       custom_provider:
-        description: '只有 endpoint_preset=custom 才需選擇原始儲存供應商'
-        required: false
+        description: '供應商；清單以外機房或其他 S3 相容服務在這裡填'
         type: choice
+        required: true
         default: other-s3
         options:
           - b2
@@ -58,67 +18,30 @@ on:
           - akamai
           - other-s3
       region:
-        description: '僅 custom 必填：手動 Region，例如 B2 us-west-004、R2 auto'
-        required: false
+        description: '手動 Region，例如 us-west-005、auto'
         type: string
+        required: true
       endpoint:
-        description: '僅 custom 必填：手動完整 HTTPS S3 Endpoint'
-        required: false
+        description: '供應商後台的完整 HTTPS S3 Endpoint'
         type: string
-      account_id:
-        description: '選 R2 端點預設時填 32 位 Account ID；custom 手動 Endpoint 可省略'
-        required: false
-        type: string
+        required: true
       bucket:
-        description: '要使用的 Bucket／Space 名稱（請先在供應商建立）'
-        required: true
+        description: 'Bucket／Space 名稱'
         type: string
+        required: true
       cdn_url:
-        description: '公開 CDN 完整 HTTPS URL（可包含 /file/桶名/ 路徑，不是 S3 Endpoint）'
-        required: true
+        description: '公開 CDN HTTPS 完整前綴（可包含 /file/桶名/）'
         type: string
-
-
+        required: true
 permissions:
   contents: write
-concurrency:
-  group: cms-configuration-main
-  cancel-in-progress: false
 jobs:
   configure:
-    name: 設定 S3 相容圖床及 CDN 公開讀取路徑
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          persist-credentials: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - name: 套用供應商預設並驗證 CDN URL／媒體歷史相容性
-        env:
-          STORAGE_ENDPOINT_PRESET: ${{ inputs.endpoint_preset }}
-          STORAGE_CUSTOM_PROVIDER: ${{ inputs.custom_provider }}
-          STORAGE_REGION: ${{ inputs.region }}
-          STORAGE_ENDPOINT: ${{ inputs.endpoint }}
-          STORAGE_ACCOUNT_ID: ${{ inputs.account_id }}
-          STORAGE_BUCKET: ${{ inputs.bucket }}
-          STORAGE_CDN_URL: ${{ inputs.cdn_url }}
-        run: node --import tsx scripts/storage-action.ts
-      - name: 網站與媒體索引完整驗收
-        run: npm run verify
-      - name: 儲存經過驗證的非機密設定
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site.config.json docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(storage): configure S3 provider, bucket and CDN URL"
-            git push origin HEAD:main
-          else
-            echo "圖床設定沒有變動。"
-          fi
+    uses: ./.github/workflows/_圖床共用套用.yml
+    with:
+      endpoint_preset: custom
+      custom_provider: ${{ inputs.custom_provider }}
+      region: ${{ inputs.region }}
+      endpoint: ${{ inputs.endpoint }}
+      bucket: ${{ inputs.bucket }}
+      cdn_url: ${{ inputs.cdn_url }}
