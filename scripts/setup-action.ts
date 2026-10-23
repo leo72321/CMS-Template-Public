@@ -31,4 +31,4 @@ if(result.status!==0){
   throw new Error('網站報表更新失敗；設定已還原，未提交 Git。');
 }
 console.log('✓ 已建立網站基本資訊：'+next.domain);
-console.log('下一步：Actions → 圖床設定｜01 Backblaze B2（或其他服務商），選其機房、填 Bucket 和 CDN URL；金鑰只放 Secrets。');
+console.log('下一步：Actions → 圖床設定｜S3 一站式驗證與套用；選供應商＋機房、Bucket 和 CDN，先設定 Secrets，Run 會驗證 S3 與 CDN 後才儲存。');

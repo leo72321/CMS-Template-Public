@@ -1,47 +1,119 @@
-name: 圖床設定｜09 其他／自訂 S3
+name: 圖床設定｜S3 一站式驗證與套用
 on:
   workflow_dispatch:
     inputs:
-      custom_provider:
-        description: '供應商；清單以外機房或其他 S3 相容服務在這裡填'
+      endpoint_preset:
+        description: 'S3 供應商＋機房；選定後自動代入 Endpoint'
         type: choice
         required: true
-        default: other-s3
+        default: choose-endpoint
         options:
-          - b2
-          - r2
-          - aws-s3
-          - wasabi
-          - digitalocean
-          - hetzner
-          - scaleway
-          - akamai
-          - other-s3
-      region:
-        description: '手動 Region，例如 us-west-005、auto'
-        type: string
-        required: true
-      endpoint:
-        description: '供應商後台的完整 HTTPS S3 Endpoint'
-        type: string
-        required: true
+          - choose-endpoint
+          - b2-us-west-001
+          - b2-us-west-002
+          - b2-us-west-004
+          - b2-us-east-005
+          - b2-eu-central-003
+          - r2-standard
+          - r2-eu
+          - r2-us
+          - r2-fedramp
+          - aws-ap-east-2
+          - aws-ap-northeast-1
+          - aws-ap-southeast-1
+          - aws-ap-east-1
+          - aws-us-east-1
+          - aws-eu-central-1
+          - wasabi-ap-northeast-1
+          - wasabi-ap-southeast-1
+          - wasabi-us-east-1
+          - wasabi-eu-central-1
+          - do-sgp1
+          - do-nyc3
+          - do-ams3
+          - do-fra1
+          - hetzner-fsn1
+          - hetzner-nbg1
+          - hetzner-hel1
+          - scaleway-fr-par
+          - scaleway-nl-ams
+          - scaleway-pl-waw
+          - scaleway-it-mil
+          - akamai-us-east
+          - akamai-us-lax
+          - akamai-jp-tyo-3
+          - custom
       bucket:
-        description: 'Bucket／Space 名稱'
+        description: 'Bucket 名稱；留白時嘗試自動辨識，無列桶權限請填實際桶名'
         type: string
-        required: true
+        required: false
       cdn_url:
-        description: '公開 CDN HTTPS 完整前綴（可包含 /file/桶名/）'
+        description: 'CDN 完整 HTTPS 前綴，可帶 /file/桶名/；網站圖片必須能公開讀回'
         type: string
         required: true
+      account_id:
+        description: '僅 Cloudflare R2 預設端點填 32 位 Account ID'
+        type: string
+        required: false
+      region:
+        description: '僅 custom 手動 S3 Endpoint 才需填 Region'
+        type: string
+        required: false
+      endpoint:
+        description: '僅 custom 填完整 HTTPS S3 API Endpoint；已知廠商自動辨認'
+        type: string
+        required: false
+      runner:
+        description: '本次執行環境；只有 GitHub 額度不足時才選 self-hosted'
+        type: choice
+        required: true
+        default: github-hosted
+        options:
+          - github-hosted
+          - self-hosted
 permissions:
   contents: write
+concurrency:
+  group: cms-storage-config-main
+  cancel-in-progress: false
 jobs:
   configure:
-    uses: ./.github/workflows/_圖床共用套用.yml
-    with:
-      endpoint_preset: custom
-      custom_provider: ${{ inputs.custom_provider }}
-      region: ${{ inputs.region }}
-      endpoint: ${{ inputs.endpoint }}
-      bucket: ${{ inputs.bucket }}
-      cdn_url: ${{ inputs.cdn_url }}
+    name: 找出 Bucket、實測上傳與下載，通過才儲存設定
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    container: ${{ inputs.runner == 'self-hosted' && 'node:24-bookworm' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 安裝固定版本套件
+        run: npm ci
+      - name: 探測 S3 可用 Bucket，驗證上傳、授權讀回與 CDN 公開讀回
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          STORAGE_ENDPOINT_PRESET: ${{ inputs.endpoint_preset }}
+          STORAGE_BUCKET: ${{ inputs.bucket }}
+          STORAGE_CDN_URL: ${{ inputs.cdn_url }}
+          STORAGE_ACCOUNT_ID: ${{ inputs.account_id }}
+          STORAGE_REGION: ${{ inputs.region }}
+          STORAGE_ENDPOINT: ${{ inputs.endpoint }}
+        run: node --import tsx scripts/storage-action.ts
+      - name: 網站、內容及媒體索引驗收
+        run: npm run verify
+      - name: 僅在實際驗證成功後儲存設定
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site.config.json docs/SITE_STRUCTURE.md docs/CONTENT_INDEX.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(storage): verify and apply S3 storage"
+            git push origin HEAD:main
+          else
+            echo "設定與現有內容一致，無需提交。"
+          fi

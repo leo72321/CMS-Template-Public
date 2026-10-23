@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { endpointPresets, endpointPresetIds, storageFormFromEndpointPreset } from '../src/lib/storage-endpoint-presets';
 import { resolveStorageForm } from '../src/lib/storage-providers';
 import { planStorageConfiguration } from '../scripts/lib/storage-config';
@@ -35,44 +35,22 @@ test('全部端點選單選項都能自動推導 provider／region／HTTPS S3 En
   }
 });
 
-test('每個 GitHub Actions 供應商頁面只顯示自己的 S3 Endpoint；八家共用同一執行核心', () => {
-  const vendorFiles: [string, string][] = [
-    ['B2', 'b2'], ['R2', 'r2'], ['AWS', 'aws-s3'],
-    ['Wasabi', 'wasabi'], ['Spaces', 'digitalocean'],
-    ['Hetzner', 'hetzner'], ['Scaleway', 'scaleway'], ['Akamai', 'akamai'],
-  ];
-  const seen = new Set<string>();
-  for (const [file, provider] of vendorFiles) {
-    const text = readFileSync('.github/workflows/圖床-' + file + '.yml', 'utf8');
-    const start = text.indexOf('      endpoint_preset:\n');
-    const end = text.indexOf('      bucket:\n', start);
-    assert.ok(start >= 0 && end > start, file);
-    const choices = [...text.slice(start, end).matchAll(/^          - ([^\n]+)$/gm)].map(x => x[1]);
-    const expected = endpointPresetIds.filter(id => endpointPresets[id].provider === provider);
-    assert.deepEqual(choices, expected, file + ' 的機房下拉選單必須只包含該廠商');
-    for (const id of choices) {
-      assert.ok(!seen.has(id), id + ' 不可重複出現在其他廠商');
-      seen.add(id);
-    }
-    assert.match(text, /uses: \.\/\.github\/workflows\/_圖床共用套用\.yml/);
-    assert.match(text, /\$\{\{ inputs\.cdn_url \}\}/);
-    assert.match(text, /\$\{\{ inputs\.endpoint_preset \}\}/);
-    if (provider === 'r2') assert.match(text, /account_id:/);
-    else assert.doesNotMatch(text, /account_id:/);
-  }
-  assert.deepEqual([...seen].sort(), endpointPresetIds.slice().sort());
-  const advanced = readFileSync('.github/workflows/圖床設定.yml', 'utf8');
-  assert.match(advanced, /endpoint_preset: custom/);
-  assert.match(advanced, /custom_provider:/);
-  assert.match(advanced, /region:/);
-  assert.match(advanced, /endpoint:/);
-  assert.doesNotMatch(advanced, /choose-endpoint/);
-  const core = readFileSync('.github/workflows/_圖床共用套用.yml', 'utf8');
-  assert.match(core, /workflow_call:/);
-  assert.match(core, /STORAGE_ENDPOINT_PRESET/);
-  assert.match(core, /run: npm run verify/);
-  assert.match(core, /git push origin HEAD:main/);
-  assert.doesNotMatch(core, /S3_SECRET_ACCESS_KEY/);
+test('GitHub Actions 只保留一個 S3 圖床設定入口，包含全部端點並執行真實驗證', () => {
+  const workflowFile = '.github/workflows/圖床設定.yml';
+  const workflows = readdirSync('.github/workflows').filter(f => f.startsWith('圖床'));
+  assert.deepEqual(workflows, ['圖床設定.yml']);
+  const content = readFileSync(workflowFile, 'utf8');
+  const start = content.indexOf('      endpoint_preset:\n');
+  const end = content.indexOf('      bucket:\n', start);
+  assert.ok(start >= 0 && end > start);
+  const choices = [...content.slice(start, end).matchAll(/^          - ([^\n]+)$/gm)].map(x => x[1]);
+  assert.deepEqual(choices, ['choose-endpoint', ...endpointPresetIds, 'custom']);
+  assert.match(content, /S3_ACCESS_KEY_ID: \$\{\{ secrets\.S3_ACCESS_KEY_ID \}\}/);
+  assert.match(content, /S3_SECRET_ACCESS_KEY: \$\{\{ secrets\.S3_SECRET_ACCESS_KEY \}\}/);
+  assert.match(content, /run: node --import tsx scripts\/storage-action\.ts/);
+  assert.match(content, /run: npm run verify/);
+  assert.match(content, /git push origin HEAD:main/);
+  assert.doesNotMatch(content, /STORAGE_CUSTOM_PROVIDER/);
   try {
     const init = readFileSync('.github/workflows/網站初始化.yml', 'utf8');
     assert.match(init, /INIT_DOMAIN:/);
@@ -113,6 +91,10 @@ test('特殊 S3 服務仍可自訂 provider、region、endpoint；預設和手�
     customProvider:'akamai',region:'us-ord',endpoint:'https://us-ord-10.linodeobjects.com',
   }));
   assert.equal(custom.provider,'akamai');
+  const automatic=storageFormFromEndpointPreset(input('custom',{
+    region:'us-west-002',endpoint:'https://s3.us-west-002.backblazeb2.com',
+  }));
+  assert.equal(automatic.provider,'b2');
   assert.equal(resolveStorageForm(custom,'holeboom.com').storage.endpoint,'https://us-ord-10.linodeobjects.com');
   assert.throws(()=>storageFormFromEndpointPreset(input('custom',{ customProvider:'other-s3' })),/自訂 S3 端點/);
   assert.throws(()=>storageFormFromEndpointPreset(input('choose-endpoint')),/請先/);

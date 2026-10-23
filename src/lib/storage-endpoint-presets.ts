@@ -56,7 +56,17 @@ export function storageFormFromEndpointPreset(selection: EndpointSelection): Sto
   }
   const shared = { bucket: selection.bucket, cdnUrl: selection.cdnUrl };
   if (key === 'custom') {
-    const provider = (selection.customProvider || 'other-s3').trim();
+    // 自訂端點自動辨認已知供應商，不再要求使用者重複選第二次供應商。
+    const host = (() => { try { return new URL(selection.endpoint ?? '').hostname.toLowerCase(); } catch { return ''; } })();
+    const known: [string, StorageProvider][] = [
+      ['.backblazeb2.com', 'b2'], ['.r2.cloudflarestorage.com', 'r2'],
+      ['.amazonaws.com.cn', 'aws-s3'], ['.amazonaws.com', 'aws-s3'],
+      ['.wasabisys.com', 'wasabi'], ['.digitaloceanspaces.com', 'digitalocean'],
+      ['.your-objectstorage.com', 'hetzner'], ['.scw.cloud', 'scaleway'],
+      ['.linodeobjects.com', 'akamai'],
+    ];
+    const inferred = known.find(([suffix]) => host.endsWith(suffix))?.[1] ?? 'other-s3';
+    const provider = (selection.customProvider || inferred).trim();
     if (!storageProviderIds.includes(provider as StorageProvider)) {
       throw new Error('自訂 S3 模式必須選擇有效的供應商。');
     }
