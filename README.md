@@ -22,7 +22,7 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 | 圖片怎麼上傳 | [圖片操作](docs/圖片操作.md) |
 | **S3 KEY、B2 機房與 Actions 設定測試** | **[圖床完整操作教學](docs/S3圖床設定.md)** |
 | **CPT 自訂文章類型（Cars 等）** | **[CPT 建立與維護](docs/CPT自訂內容.md)** |
-| Cloudflare Pages 怎麼接 | [部署說明](docs/部署說明.md) |
+| Cloudflare Pages 怎麼接 | **[第一次部署教學](#cloudflare-pages-部署教學)**・[完整部署說明](docs/部署說明.md) |
 | Agent 該遵守什麼規則 | [AGENTS.md](AGENTS.md) |
 | 功能與驗收範圍 | [功能與驗收](docs/功能與驗收.md) |
 
@@ -35,6 +35,62 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 ## 不寫程式初始化網站
 
 複製本公開範本為私人倉庫後，開啟 **Actions → 網站初始化精靈 → Run workflow**，先填網站名稱、網域、簡介與作者。接著使用唯一的 **Actions → 圖床設定｜S3 一站式驗證與套用**，選供應商＋機房與 Bucket，自訂 CDN 優先；沒有自訂時手動啟用 B2 公開下載網址。按 Run 便會先真實上傳／CDN 單次 HEAD 連結檢查，全部通過才提交設定。詳見 [中文初始化說明](docs/初始化精靈.md)；原 B2 Native 流程未主動切換前仍保留。
+
+## Cloudflare Pages 部署教學
+
+**第一次使用也可以照這段操作，不需要會寫程式、自己架伺服器，或在 Cloudflare 填寫 S3 金鑰。** 本公版是 Astro 靜態網站，使用 **Cloudflare Pages**（不要選成 Workers），連接 GitHub 後就能自動部署。
+
+### 第一步：建立自己的 GitHub 網站倉庫
+
+1. 在本公版的 GitHub 頁面點 **Use this template → Create a new repository**，建立自己的網站倉庫；正式網站建議選 **Private**。**不要直接把公版倉庫當成你的正式網站**。
+2. 進入新倉庫的 **Actions → 網站初始化精靈 → Run workflow**，填入自己的網站名稱、網域、簡介等資料並執行。這會更新 `site.config.json`；詳細欄位見 [初始化說明](docs/初始化精靈.md)。
+3. 確認 GitHub 倉庫已有 `main` 分支。Cloudflare 要連接的是**剛建立的新倉庫**，不是 `CMS-Template-Public` 公版。
+
+### 第二步：在 Cloudflare 建立 Pages 專案
+
+1. 登入 [Cloudflare 控制台](https://dash.cloudflare.com/)。
+2. 進入 **Workers & Pages → Create application（建立應用程式）→ Pages**。不同版面的按鈕名稱可能略有差異，請選 **Import an existing Git repository／Connect to Git（連接 Git 儲存庫）**。
+3. 選擇 **GitHub**，按照畫面授權 Cloudflare 存取你的 GitHub 倉庫；看不到私人倉庫時，檢查 GitHub 整合是否授權該倉庫。
+4. 選取第一步建立的**自己的網站倉庫**，再按 **Begin setup（開始設定）**。
+
+### 第三步：填寫組建設定（這兩欄一定要填對）
+
+| Cloudflare Pages 設定欄位 | 請填入 |
+| --- | --- |
+| Production branch（正式部署分支） | `main` |
+| Framework preset（框架預設） | `Astro`；也可選 `None`，但下方兩欄仍需手動填寫 |
+| **組建命令（Build command）** | **`npm run build`** |
+| **組建輸出目錄（Build output directory）** | **`dist`** |
+| Root directory（根目錄） | **留空**，使用 GitHub 倉庫根目錄 |
+| Node.js 版本 | **24**；倉庫已有 `.nvmrc`，內容為 `24` |
+
+**最重要的兩個值，直接照填：**
+
+`組建命令：npm run build`
+
+`組建輸出目錄：dist`
+
+> `dist` 是網站建置後產生的檔案目錄，**不是** `src`、`public` 或 GitHub 倉庫網址。即使框架選了 Astro，也要再確認這兩欄沒有自動帶錯。Cloudflare Pages 的建置環境可透過 `.nvmrc` 選用 Node.js 24；若版本未正確套用，可在 Pages 的環境變數設定 `NODE_VERSION=24`。
+
+### 第四步：部署並確認網站真的可以打開
+
+1. 按 **Save and Deploy（儲存並部署）**，查看首次部署的建置紀錄，確認完成且顯示 **Success**。
+2. Cloudflare 會提供類似 `https://你的專案名稱.pages.dev` 的測試網址。**實際打開它**，確認首頁、其他頁面能載入，而不是只看到部署的綠色勾勾。
+3. 以後將修改提交到 GitHub 的 `main` 分支，Cloudflare Pages 就會自動重建並部署；PR／其他分支也可產生預覽網址。
+
+**部署顯示成功，但網頁卻是 404？** 先回到 Pages 的 **Settings → Builds & deployments（組建與部署設定）** 檢查是否為 `npm run build`、`dist`、`main`，並確認連的是自己的倉庫、最新 Production 部署確實包含新 Commit。**修改組建設定後要重新觸發正式部署**，舊部署不會自行變成新設定。若 `pages.dev` 正常但自訂網域不正常，再檢查下一步的網域綁定與 DNS。
+
+### 第五步：綁定自己的正式網域（可先跳過）
+
+1. 進入 **Workers & Pages → 你的 Pages 專案 → Custom domains（自訂網域）→ Set up a domain（設定網域）**，輸入網站正式網域。
+2. 如果網域 DNS 已由同一個 Cloudflare 帳號管理，按照指示完成網域綁定；Cloudflare 通常會協助新增所需紀錄。
+3. 如果子網域使用其他 DNS 服務商，先在 Pages 介面新增該自訂網域，再依指示建立 **CNAME** 指向 `你的專案名稱.pages.dev`；不要只新增 DNS 紀錄卻不在 Pages 綁定網域。
+4. 根網域（例如 `example.com`）需要依照 Cloudflare 的名稱伺服器設定流程處理；已經指向其他主機、Tunnel 的同名 DNS／路由，必須先確認不會衝突。
+5. 最後確認 `site.config.json` 的 `domain` 是你的正式網域，且正式網域 **HTTPS 可正常開啟網站內容**。
+
+**備註：** 網站部署到 Pages 不需要設定 Backblaze B2／S3 金鑰。圖床是另一個步驟，依照 [S3 圖床設定](docs/S3圖床設定.md) 再處理即可。網站一開始不能收錄是因為公版預設 `indexable: false`；正式內容與網域都準備好，再依 [設定說明](docs/設定說明.md) 開啟搜尋引擎收錄。
+
+進階設定與驗收請看 [GitHub 與 Cloudflare Pages 部署說明](docs/部署說明.md)，或參考 [Cloudflare 官方 Astro 部署教學](https://developers.cloudflare.com/pages/framework-guides/deploy-an-astro-site/)。
 
 ## 建立新網站
 
