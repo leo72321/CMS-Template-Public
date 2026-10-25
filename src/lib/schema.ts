@@ -162,6 +162,7 @@ export const siteSchema = z.object({
     defaultLocale: localeCode.default('zh-TW'),
     locales: z.array(localeCode).min(1).default(['zh-TW']),
     languageSuggestion: z.boolean().default(true),
+    metadata: z.record(z.string(), z.object({ title: z.string().trim().min(1), description: z.string().trim().min(1), author: z.string().trim().min(1).optional() }).strict()).default({}),
   }).strict().prefault({ enabled: false }),
   indexable: z.boolean().default(false),
   productionBranch: z.string().default('main'),
@@ -208,6 +209,7 @@ export const siteSchema = z.object({
     const { locales, defaultLocale } = site.i18n;
     if (!locales.includes(defaultLocale)) ctx.addIssue({ code: 'custom', path: ['i18n', 'locales'], message: '多語言列表必須包含預設語言。' });
     if (new Set(locales).size !== locales.length) ctx.addIssue({ code: 'custom', path: ['i18n', 'locales'], message: '多語言列表不可重複。' });
+    for (const lang of Object.keys(site.i18n.metadata)) if (!locales.includes(lang as typeof locales[number])) ctx.addIssue({ code: 'custom', path: ['i18n','metadata',lang], message: '中繼資料語言不在啟用清單中。' });
     if (site.language !== defaultLocale) ctx.addIssue({ code: 'custom', path: ['language'], message: 'language 必須與 i18n.defaultLocale 一致。' });
   }
   const reserved = new Set(['blog','site','post','posts','page','pages','tag','tags','category','categories','topics','sitemap','404','assets']);
