@@ -5,7 +5,8 @@ interface Props { route: Route; site: Site; }
 const { route, site } = Astro.props;
 const locale = route.locale ?? site.language;
 const canonical = `https://${site.domain}${encodePath(route.path)}`;
-const title = route.kind === 'home' ? site.title : `${route.title}｜${site.title}`;
+const siteTitle = route.siteTitle ?? site.title;
+const title = route.kind === 'home' ? siteTitle : `${route.title}｜${siteTitle}`;
 const cover = route.document?.data.cover;
 const image = cover ? new URL(cover.ogUrl ?? cover.url, `https://${site.domain}`).href : undefined;
 const document = route.document;
@@ -13,7 +14,7 @@ const schema = document?.kind === 'post' || document?.kind === 'cpt' ? {
   '@context': 'https://schema.org', '@type': document.kind === 'post' ? 'BlogPosting' : 'Article', headline: document.data.title,
   description: document.data.description, url: canonical, mainEntityOfPage: canonical,
   ...(document.data.publishedAt ? { datePublished: `${document.data.publishedAt}T00:00:00+08:00`, dateModified: `${document.data.updatedAt ?? document.data.publishedAt}T00:00:00+08:00` } : {}),
-  author: { '@type': 'Person', name: site.author }, publisher: { '@type': 'Organization', name: site.title },
+  author: { '@type': 'Person', name: site.author }, publisher: { '@type': 'Organization', name: siteTitle },
   ...(image ? { image: [image] } : {}),
 } : {
   '@context': 'https://schema.org', '@type': route.kind === 'category' || route.kind === 'tag' || route.kind === 'blog' || route.kind === 'cpt-index' ? 'CollectionPage' : 'WebPage',
@@ -33,7 +34,7 @@ const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 {route.alternates && !route.noindex && route.alternates[site.i18n.defaultLocale] && <link rel="alternate" hreflang="x-default" href={`https://${site.domain}${encodePath(route.alternates[site.i18n.defaultLocale])}`} />}
 
 <meta property="og:type" content={route.kind === 'post' || route.kind === 'cpt' ? 'article' : 'website'} />
-<meta property="og:site_name" content={site.title} />
+<meta property="og:site_name" content={siteTitle} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={route.description} />
 <meta property="og:url" content={canonical} />
