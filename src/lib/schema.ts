@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { normalizeCdnPrefix, normalizeHttpsEndpoint, storageProviderIds } from './storage-providers';
+import { normalizeCdnPrefix, normalizeHttpsEndpoint, storageProviderIds, isValidDomain } from './storage-providers';
 z.config(z.locales.zhTW());
 
 // uid 是永久內容識別碼；slug 是網址名稱。標題改字不會自動變更網址。
@@ -161,8 +161,7 @@ export const siteSchema = z.object({
   $schema: z.string().optional(),
   _說明: z.string().optional(),
   domain: z.string().refine((s) => {
-    try { const u = new URL(`https://${s}`); return u.host === s && u.pathname === '/' && s.includes('.') && !u.port; }
-    catch { return false; }
+    return isValidDomain(s);
   }, '網域請填 example.com，不含 https://、路徑或連接埠。'),
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),

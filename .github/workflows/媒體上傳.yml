@@ -112,10 +112,10 @@ jobs:
             fi
             mkdir -p .tmp/media-inbox
             destination=".tmp/media-inbox/upload.${extension}"
-            curl --fail --location --max-redirs 3 --proto '=https' --proto-redir '=https' --max-filesize 104857600 --max-time 150 --retry 0 --silent --show-error --output "$destination" "$MEDIA_SOURCE_URL"
+            curl --fail --max-redirs 0 --proto '=https' --proto-redir '=https' --max-filesize 104857600 --max-time 150 --retry 0 --silent --show-error --output "$destination" "$MEDIA_SOURCE_URL"
             echo "UPLOAD_SOURCE=$destination" >> "$GITHUB_ENV"
           else
-            if [[ "$MEDIA_SOURCE_PATH" = /* || "$MEDIA_SOURCE_PATH" == *".."* || ! -f "$MEDIA_SOURCE_PATH" ]]; then
+            if [[ "$MEDIA_SOURCE_PATH" = /* || "$MEDIA_SOURCE_PATH" == *".."* || ! "$MEDIA_SOURCE_PATH" =~ ^[a-zA-Z0-9_./-]+$ || ! -f "$MEDIA_SOURCE_PATH" ]]; then
               echo 'source_path 必須是已提交到 Repo 的一般檔案相對路徑，不可穿越目錄。' >&2
               exit 1
             fi

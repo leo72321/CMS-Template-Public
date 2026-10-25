@@ -47,8 +47,18 @@ run(() => {
     if ($('meta[property="og:url"]').attr('content') !== canonical) errors.push(`${route.path}：OG 分享網址不正確。`);
     if (!$('script[type="application/ld+json"]').length) errors.push(`${route.path}：缺少結構化資料。`);
     $('script[type="application/ld+json"]').each((_, element) => { try { JSON.parse($(element).text()); } catch { errors.push(`${route.path}：結構化資料不是有效的 JSON。`); } });
+    // Only permit the known, first-party inline bootstraps outside the article body.
+    let gtmCount = 0, localeCount = 0;
     $('script:not([type="application/ld+json"])').each((_, element) => {
-      if ((!model.site.gtmId || !$(element).text().includes('www.googletagmanager.com/gtm.js')) && !(model.site.i18n.enabled && model.site.i18n.languageSuggestion && $(element).text().includes('cms:locale-preference:v1'))) errors.push(`${route.path}：出現公版以外的前端 JavaScript，請確認必要性並調整效能規範。`);
+      const script = $(element), source = script.text();
+      if (script.attr('src') !== undefined || script.closest('main, .prose').length) {
+        errors.push(`${route.path}：不允許外部或內容區塊的 JavaScript。`); return;
+      }
+      const isGtm = !!model.site.gtmId && source.includes('www.googletagmanager.com/gtm.js') && source.includes(model.site.gtmId) && source.includes('dataLayer');
+      const isLocale = model.site.i18n.enabled && model.site.i18n.languageSuggestion && source.includes('cms:locale-preference:v1') && source.includes('[data-locale-link]');
+      if (isGtm && ++gtmCount <= 1) return;
+      if (isLocale && ++localeCount <= 1) return;
+      errors.push(`${route.path}：出現未許可的前端 JavaScript。`);
     });
     $('img').each((_, element) => {
       const img = $(element);

@@ -1,3 +1,8 @@
+export function isValidDomain(domain: string): boolean {
+  return /^(?=.{4,253}$)[a-z0-9-]+(?:\\.[a-z0-9-]+)+$/.test(domain)
+    && domain.split('.').every(label => label.length <= 63 && !label.startsWith('-') && !label.endsWith('-'));
+}
+
 // 所有供應商共用 AWS S3 API / SigV4 上傳器；差別只在連線端點、Region 與 CDN。
 export const storageProviderIds = [
   'b2', 'r2', 'aws-s3', 'wasabi', 'digitalocean', 'hetzner',
@@ -77,7 +82,7 @@ export function resolveStorageForm(form: StorageForm, domain: string) {
     throw new Error('Bucket 名稱必須是有效的 3–63 字元儲存桶名稱。');
   }
   const cdnBase = normalizeCdnPrefix(form.cdnUrl);
-  if (!/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(domain)) throw new Error('網站網域格式不正確。');
+  if (!isValidDomain(domain)) throw new Error('網站網域格式不正確。');
   // 這個完整網址應能對應 Bucket 物件 key：domain/path/file.webp
   const sampleObjectKey = domain + '/.cms-healthcheck/sample.txt';
   return { storage, bucket, cdnBase, samplePublicUrl: cdnBase + sampleObjectKey };
