@@ -4,8 +4,13 @@ import { join } from 'node:path';
 import { pathFor, type Model, type Post } from '../lib/model';
 import PostList from './PostList.astro';
 import PostFooterCustom from './PostFooterCustom.astro';
-interface Props { model: Model; post: Post; }
-const { model, post } = Astro.props;
+interface Props { model: Model; post: Post; locale?: string; }
+const { model, post, locale = model.site.language } = Astro.props;
+import { localePrefix, t } from '../lib/i18n';
+const prefix = localePrefix(locale, model.site);
+const categories = ('localizedCategories' in model ? model.localizedCategories.get(locale) : model.categories) ?? model.categories;
+const tags = ('localizedTags' in model ? model.localizedTags.get(locale) : model.tags) ?? model.tags;
+const posts = ('localizedPosts' in model ? model.localizedPosts.get(locale) : model.posts) ?? model.posts;
 const { postFooter, relatedArticles } = model.site;
 // 每篇 POST 個別計算推薦；正文已出現的站內文章先排除，避免重複。
 // Inspect only actual outbound links. Avoid scanning the full article body against every post.
@@ -18,11 +23,11 @@ for (const match of post.body.matchAll(/(?:\]\(|href\s*=\s*["'])(\/?[^\s"'?#)]+)
   } catch { /* invalid links are reported by the existing audit */ }
 }
 const uidByPath = new Map<string, string>();
-for (const candidate of model.posts) {
+for (const candidate of posts) {
   const uid = candidate.data.uid;
-  uidByPath.set(pathFor(candidate, model.categories), uid);
-  uidByPath.set('/blog/' + candidate.data.slug + '/', uid);
-  for (const base of model.site.blogLegacyPaths) uidByPath.set(base + candidate.data.slug + '/', uid);
+  uidByPath.set(prefix + pathFor(candidate, categories), uid);
+  uidByPath.set(prefix + '/blog/' + candidate.data.slug + '/', uid);
+  for (const base of model.site.blogLegacyPaths) uidByPath.set(prefix + base + candidate.data.slug + '/', uid);
 }
 const referenced = new Set([...hrefs].map(p => uidByPath.get(p)).filter((uid): uid is string => !!uid));
 const remaining = Math.max(0, relatedArticles.maxItems - referenced.size);
@@ -37,7 +42,7 @@ const hasFooter = showTags || author.enabled || blocks.length > 0 || related.len
 ---
 {hasFooter && <div class="post-footer" aria-label="文章下方資訊">
   {showTags && <nav class="post-footer-tags" aria-label="文章標籤">
-    {post.data.tags.map(id => model.tags.find(t => t.id === id)).filter((tag): tag is (typeof model.tags)[number] => !!tag).map(tag => <a href={'/tag/' + tag.slug + '/'}>#{tag.name}</a>)}
+    {post.data.tags.map(id => tags.find(t => t.id === id)).filter((tag): tag is (typeof model.tags)[number] => !!tag).map(tag => <a href={prefix + '/tag/' + tag.slug + '/'}>#{tag.name}</a>)}
   </nav>}
   {author.enabled && <section class="post-footer-author" aria-label="作者介紹">
     {photoAvailable && <img src={photo} alt={authorName + '照片'} loading="lazy" decoding="async" width="88" height="88" />}
@@ -49,8 +54,8 @@ const hasFooter = showTags || author.enabled || blocks.length > 0 || related.len
   </section>}
   {blocks.map(block => <PostFooterCustom block={block} />)}
   {related.length > 0 && <section class="post-footer-related" aria-label="延伸閱讀">
-    <h2>延伸閱讀</h2>
-    <PostList posts={related} categories={model.categories} />
+    <h2>{t(locale, "related")}</h2>
+    <PostList posts={related} categories={categories} prefix={prefix} locale={locale} />
   </section>}
 </div>}
 <style>
