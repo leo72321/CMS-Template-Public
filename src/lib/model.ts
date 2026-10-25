@@ -1,5 +1,6 @@
 import type { Site, PostData, PageData, CptData, ContentTypeDefinition, Taxonomy, Topic } from './schema';
 import { validateCptFields } from './cpt';
+import { contentLocale, localizedPath, translationGroup } from './i18n';
 import { manageRedirects, type RedirectHistory } from './redirect-manager';
 
 export type Post = { data: PostData; body: string; file: string; kind: 'post' };
@@ -7,7 +8,7 @@ export type Page = { data: PageData; body: string; file: string; kind: 'page' };
 export type Cpt = { data: CptData; body: string; file: string; kind: 'cpt' };
 export type Document = Post | Page | Cpt;
 export type Route = {
-  path: string; title: string; description: string;
+  path: string; title: string; description: string; siteTitle?: string; locale?: string; alternates?: Record<string,string>;
   kind: 'home' | 'blog' | 'post' | 'page' | 'category' | 'tag' | 'cpt' | 'cpt-index';
   noindex: boolean; document?: Document; posts?: Post[]; cpts?: Cpt[]; contentType?: ContentTypeDefinition; taxonomy?: Taxonomy;
   page?: number; totalPages?: number; base?: string;
@@ -32,6 +33,10 @@ export const todayTaipei = (now = new Date()) => new Intl.DateTimeFormat('en-CA'
   timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(now);
 export function makeModel(input: Input, site: Site, now = new Date(), preview = false, redirectHistory?: RedirectHistory) {
+  if (site.i18n.enabled) return makeI18nModel(input, site, now, preview, redirectHistory);
+  return makeSingleModel(input, site, now, preview, redirectHistory);
+}
+function makeSingleModel(input: Input, site: Site, now = new Date(), preview = false, redirectHistory?: RedirectHistory) {
   const errors: string[] = [];
   const unique = (list: { id: string }[], label: string) => {
     const seen = new Set<string>();
@@ -190,4 +195,120 @@ export function makeModel(input: Input, site: Site, now = new Date(), preview = 
   const redirectState = manageRedirects(redirects, redirectHistory, site.redirectManagement, now);
   return { ...input, posts, pages, cpts, routes, byPath, redirects: redirectState.redirects, redirectState, canIndex, related, site };
 }
+
+/**
+ * Keep the original single-language builder as the authority for each locale.
+ * The default locale retains its exact existing routes and URL-lock identities.
+ * Translated entries have different immutable uid/id values and a shared translationKey.
+ */
+function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, redirectHistory?: RedirectHistory) {
+  const def = site.i18n.defaultLocale;
+  const languages = site.i18n.locales;
+  const documents = [...input.posts, ...input.pages, ...(input.cpts ?? [])];
+  const taxonomies = [...input.categories, ...input.tags, ...input.topics];
+  for (const item of [...documents, ...taxonomies]) {
+    const locale = contentLocale('data' in item ? item.data : item, site);
+    if (!languages.includes(locale as typeof languages[number])) throw new Error('未啟用的內容語言：' + locale);
+    if (locale !== def && !('data' in item ? item.data.translationKey : item.translationKey)) {
+      throw new Error('翻譯內容須指定 translationKey：' + ('file' in item ? item.file : item.id));
+    }
+  }
+  const names = new Set<string>();
+  for (const d of documents) {
+    if (names.has(d.data.uid)) throw new Error('內容 uid 重複：' + d.data.uid);
+    names.add(d.data.uid);
+  }
+  const translationIndex = new Map<string, Set<string>>();
+  for (const d of documents) {
+    const group = d.kind + ':' + translationGroup(d.data);
+    const locales = translationIndex.get(group) ?? new Set<string>();
+    const locale = contentLocale(d.data, site);
+    if (locales.has(locale)) throw new Error('同一翻譯群組的語言重複：' + group + ':' + locale);
+    locales.add(locale); translationIndex.set(group, locales);
+  }
+  // A translated page must be the same content kind as its source.
+  const sourceGroups = new Set(documents.filter(d => contentLocale(d.data, site) === def).map(d => d.kind + ':' + translationGroup(d.data)));
+  for (const d of documents.filter(d => contentLocale(d.data, site) !== def)) {
+    if (!sourceGroups.has(d.kind + ':' + translationGroup(d.data))) throw new Error('譯文找不到預設語言原稿：' + d.file);
+  }
+  const taxFor = <T extends { locale?: string }>(items: T[], locale: string): T[] =>
+    items.filter(x => contentLocale(x, site) === locale);
+  const slice = (locale: string): Input => ({
+    posts: input.posts.filter(x => contentLocale(x.data, site) === locale),
+    pages: input.pages.filter(x => contentLocale(x.data, site) === locale),
+    cpts: (input.cpts ?? []).filter(x => contentLocale(x.data, site) === locale),
+    categories: taxFor(input.categories, locale), tags: taxFor(input.tags, locale),
+    topics: taxFor(input.topics, locale),
+  });
+  const localizedSite = (locale: string): Site => ({
+    ...site, language: locale as Site['language'],
+    title: site.i18n.metadata[locale]?.title ?? site.title,
+    description: site.i18n.metadata[locale]?.description ?? site.description,
+    author: site.i18n.metadata[locale]?.author ?? site.author,
+    i18n: { ...site.i18n, enabled: false },
+    // Legacy aliases and their root redirects belong exclusively to the default language.
+    blogLegacyPaths: locale === def ? site.blogLegacyPaths : [],
+  });
+  const primary = makeSingleModel(slice(def), localizedSite(def), now, preview, redirectHistory);
+  const views = new Map<string, typeof primary>([[def, primary]]);
+  for (const lang of languages.filter(x => x !== def)) views.set(lang,
+    makeSingleModel(slice(lang), localizedSite(lang), now, preview));
+  const routes: Route[] = [];
+  const byPath = new Map<string, Route>();
+  const translationRoutes = new Map<string, Record<string,string>>();
+  const fingerprints = new Map<string, string>();
+  for (const lang of languages) {
+    const view = views.get(lang)!;
+    for (const route of view.routes) {
+      const path = localizedPath(lang, route.path, site);
+      if (byPath.has(path)) throw new Error('多語言網址衝突：' + path);
+      const localized: Route = { ...route, path, locale: lang, siteTitle: view.site.title, ...(route.base ? { base: localizedPath(lang, route.base, site) } : {}) };
+      routes.push(localized); byPath.set(path, localized);
+      if (route.document) {
+        const key = route.document.kind + ':' + translationGroup(route.document.data);
+        const versions = translationRoutes.get(key) ?? {};
+        versions[lang] = path; translationRoutes.set(key, versions);
+        fingerprints.set(path, key);
+      }
+    }
+  }
+  // Link article translations to one another; home and blog have equivalents as well.
+  for (const route of routes) {
+    const key = fingerprints.get(route.path);
+    if (key) route.alternates = Object.fromEntries(Object.entries(translationRoutes.get(key) ?? {})
+      .filter(([,path]) => !byPath.get(path)?.noindex));
+    else if (route.kind === 'home' || route.kind === 'blog') {
+      route.alternates = Object.fromEntries(languages.map(lang =>
+        [lang, localizedPath(lang, route.kind === 'home' ? '/' : '/blog/', site)]));
+    }
+  }
+  const redirects = new Map<string,string>(primary.redirects);
+  for (const lang of languages.filter(x => x !== def)) {
+    const view = views.get(lang)!;
+    for (const [from,to] of view.redirects) {
+      const source = localizedPath(lang, from, site);
+      const target = localizedPath(lang, to, site);
+      if (redirects.has(source) || byPath.has(source)) throw new Error('多語言轉址衝突：' + source);
+      redirects.set(source,target);
+    }
+  }
+  for (const [from,to] of redirects) {
+    if (byPath.has(from) || !byPath.has(to)) throw new Error('多語言轉址來源或目標不正確：' + from + ' → ' + to);
+  }
+  if (redirects.size > site.redirectManagement.maxActive) throw new Error('多語言 301 超過容量：' + redirects.size);
+  return {
+    ...primary, site, routes, byPath, redirects, views,
+    localizedPosts: new Map(languages.map(lang => [lang, views.get(lang)!.posts])),
+    localizedPages: new Map(languages.map(lang => [lang, views.get(lang)!.pages])),
+    localizedCategories: new Map(languages.map(lang => [lang, views.get(lang)!.categories])),
+    localizedTags: new Map(languages.map(lang => [lang, views.get(lang)!.tags])),
+    localizedCpts: new Map(languages.map(lang => [lang, views.get(lang)!.cpts])),
+    languages,
+    related: (post: Post, limit?: number, exclude?: Set<string>) => {
+      const lang = contentLocale(post.data, site);
+      return views.get(lang)!.related(post, limit, exclude);
+    },
+  };
+}
 export type Model = ReturnType<typeof makeModel>;
+

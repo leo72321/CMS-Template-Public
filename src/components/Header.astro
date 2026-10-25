@@ -1,12 +1,19 @@
 ---
-import type { Model } from '../lib/model';
-interface Props { model: Model; }
-const { model } = Astro.props;
+import { localePrefix, t } from '../lib/i18n';
+import type { Model, Route } from '../lib/model';
+interface Props { model: Model; route: Route; }
+const { model, route } = Astro.props;
+const locale = route.locale ?? model.site.language;
+const prefix = localePrefix(locale, model.site);
+const pages = ('localizedPages' in model ? (model.localizedPages as Map<string, typeof model.pages>).get(locale) : model.pages) ?? model.pages;
+const types = model.site.contentTypes;
 const pathname = Astro.url.pathname;
 const current = (href: string) => pathname === href ? 'page' : undefined;
-const primaryPages = model.pages.filter(p => model.site.headerNavPages.includes(p.data.slug));
+const primaryPages = model.pages.filter(p => model.site.headerNavPages.includes(p.data.slug))
+  .map(source => pages.find(target => (target.data.translationKey ?? target.data.uid) === (source.data.translationKey ?? source.data.uid)))
+  .filter((p): p is typeof pages[number] => !!p);
 ---
 <header class="site-header">
-  <a class="brand" href="/" aria-current={current("/")}>{model.site.title}<span class="brand-dot" aria-hidden="true"></span></a>
-  <nav aria-label="主要導覽"><a href="/blog/" aria-current={current("/blog/")}>全部文章</a>{model.site.contentTypes.map(t => <a href={'/' + t.id + '/'} aria-current={current('/' + t.id + '/')}>{t.name}</a>)}{primaryPages.map(p => <a href={`/${p.data.slug}/`} aria-current={current(`/${p.data.slug}/`)}>{p.data.title}</a>)}</nav>
+  <a class="brand" href={prefix + "/"} aria-current={current(prefix + "/")}>{route.siteTitle ?? model.site.title}<span class="brand-dot" aria-hidden="true"></span></a>
+  <nav aria-label="主要導覽"><a href={prefix + "/blog/"} aria-current={current(prefix + "/blog/")}>{t(locale, "blog")}</a>{types.map(t => <a href={prefix + '/' + t.id + '/'} aria-current={current(prefix + '/' + t.id + '/')}>{t.name}</a>)}{primaryPages.map(p => <a href={`${prefix}/${p.data.slug}/`} aria-current={current(`${prefix}/${p.data.slug}/`)}>{p.data.title}</a>)}</nav>
 </header>

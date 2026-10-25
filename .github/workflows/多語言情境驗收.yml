@@ -1,0 +1,29 @@
+name: 多語言網站情境驗收
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  locale-smoke:
+    name: 啟用多語言並完整建置驗收
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: 啟用三種語言並寫入測試內容
+        run: node scripts/test-i18n-fixture.mjs
+      - name: 同步 URL、文件與網站
+        run: |
+          npm run docs:update
+          npm run urls:update
+          npm run check
+          npm test
+          npm run build
+      - name: 驗證中英西語實際靜態產物
+        run: node scripts/assert-i18n-output.mjs
