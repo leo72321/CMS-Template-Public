@@ -34,7 +34,7 @@ const cpt = document?.kind === 'cpt' ? document as Cpt : undefined;
 const cptFields = cptType?.fields ?? [];
 ---
 <Base model={model} route={route}>
-  {route.kind === 'home' && <section class="hero"><p class="eyebrow">{t(locale, 'subjects')}</p><h1>{model.site.title}</h1><p class="hero-description">{route.description}</p><a class="text-link" href={prefix + '/blog/'}>{t(locale, 'browse')}</a></section>}
+  {route.kind === 'home' && <section class="hero"><p class="eyebrow">{t(locale, 'subjects')}</p><h1>{route.siteTitle ?? model.site.title}</h1><p class="hero-description">{route.description}</p><a class="text-link" href={prefix + '/blog/'}>{t(locale, 'browse')}</a></section>}
   {route.kind === 'home' && <section class="section"><div class="section-heading"><h2>{t(locale, 'newest')}</h2></div><PostList posts={posts.slice(0, 6)} categories={categories} prefix={prefix} locale={locale} /></section>}
   {route.kind !== 'home' && <Breadcrumbs items={crumbs} site={model.site} />}
   {route.kind !== "home" && <header class="page-heading"><p class="eyebrow">{category?.name ?? cptType?.name ?? (document ? '頁面' : '文章索引')}</p><h1>{route.title}</h1><p>{route.description}</p>{date && <div class="meta"><time datetime={date.publishedAt}>{t(locale, "published")} {date.publishedAt}</time>{date.updatedAt && <time datetime={date.updatedAt}>{t(locale, "updated")} {date.updatedAt}</time>}</div>}</header>}
