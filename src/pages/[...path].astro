@@ -1,4 +1,5 @@
 ---
+import { localePrefix, t } from '../lib/i18n';
 import { getCollection, render } from 'astro:content';
 import { getModel } from '../lib/content';
 import { type Route, type Post, type Cpt } from '../lib/model';
@@ -14,13 +15,18 @@ export async function getStaticPaths() {
 interface Props { route: Route; }
 const { route } = Astro.props;
 const model = await getModel();
+const locale = route.locale ?? model.site.language;
+const prefix = localePrefix(locale, model.site);
+const categories = ("localizedCategories" in model ? model.localizedCategories.get(locale) : model.categories) ?? model.categories;
+const posts = ("localizedPosts" in model ? model.localizedPosts.get(locale) : model.posts) ?? model.posts;
+const tags = ("localizedTags" in model ? model.localizedTags.get(locale) : model.tags) ?? model.tags;
 const document = route.document;
 const entry = document ? (await getCollection(document.kind === 'post' ? 'posts' : document.kind === 'page' ? 'pages' : 'cpt')).find(e => e.data.uid === document.data.uid) : undefined;
 const rendered = entry ? await render(entry) : undefined;
 const Content = rendered?.Content;
-const category = document?.kind === 'post' ? model.categories.find(c => c.id === (document as Post).data.category) : undefined;
+const category = document?.kind === 'post' ? categories.find(c => c.id === (document as Post).data.category) : undefined;
 const cptType = document?.kind === 'cpt' ? model.site.contentTypes.find(t => t.id === document.data.type) : route.contentType;
-const crumbs = [{ name: '首頁', path: '/' }, ...(category ? [{ name: '全部文章', path: '/blog/' }, { name: category.name, path: `/${category.slug}/` }] : []), ...(document?.kind === 'cpt' && cptType ? [{ name: cptType.name, path: '/' + cptType.id + '/' }] : []), { name: route.title, path: route.path }];
+const crumbs = [{ name: t(locale, "home"), path: prefix + "/" }, ...(category ? [{ name: t(locale, "blog"), path: prefix + "/blog/" }, { name: category.name, path: `${prefix}/${category.slug}/` }] : []), ...(document?.kind === 'cpt' && cptType ? [{ name: cptType.name, path: prefix + '/' + cptType.id + '/' }] : []), { name: route.title, path: route.path }];
 const article = document?.kind === 'post' ? document as Post : undefined;
 const cover = document?.data.cover;
 const date = document?.kind === 'post' ? (document as Post).data : document?.kind === 'cpt' ? (document as Cpt).data : undefined;
@@ -29,7 +35,7 @@ const cptFields = cptType?.fields ?? [];
 ---
 <Base model={model} route={route}>
   <Breadcrumbs items={crumbs} site={model.site} />
-  <header class="page-heading"><p class="eyebrow">{category?.name ?? cptType?.name ?? (document ? '頁面' : '文章索引')}</p><h1>{route.title}</h1><p>{route.description}</p>{date && <div class="meta"><time datetime={date.publishedAt}>發布 {date.publishedAt}</time>{date.updatedAt && <time datetime={date.updatedAt}>更新 {date.updatedAt}</time>}</div>}</header>
+  <header class="page-heading"><p class="eyebrow">{category?.name ?? cptType?.name ?? (document ? '頁面' : '文章索引')}</p><h1>{route.title}</h1><p>{route.description}</p>{date && <div class="meta"><time datetime={date.publishedAt}>{t(locale, "published")} {date.publishedAt}</time>{date.updatedAt && <time datetime={date.updatedAt}>{t(locale, "updated")} {date.updatedAt}</time>}</div>}</header>
   {cover && <img class="cover" src={cover.url} alt={cover.alt} width={cover.width} height={cover.height} loading="eager" fetchpriority="high" decoding="async" srcset={cover.variants.length ? cover.variants.map(v => `${v.url} ${v.width}w`).join(', ') : undefined} sizes="(max-width: 1000px) 100vw, 960px" />}
   {cpt && <section class="cpt-specs" aria-label="詳細資料"><dl>{cptFields.filter(field => cpt.data.fields[field.id] !== undefined).map(field => {
     const value = cpt.data.fields[field.id];
@@ -44,16 +50,16 @@ const cptFields = cptType?.fields ?? [];
     </dd></div>;
   })}</dl></section>}
   {Content && <article class="prose" data-pagefind-body><Content /></article>}
-  {article && <PostFooter model={model} post={article} />}
+  {article && <PostFooter model={model} post={article} locale={locale} />}
   {route.cpts && <section class="cpt-list" aria-label={route.title}>
     {route.cpts.length
-      ? <div class="cpt-grid">{route.cpts.map(item => <a class="cpt-card" href={'/' + item.data.type + '/' + item.data.slug + '/'}>
+      ? <div class="cpt-grid">{route.cpts.map(item => <a class="cpt-card" href={prefix + '/' + item.data.type + '/' + item.data.slug + '/'}>
         {item.data.cover && <img src={item.data.cover.url} alt={item.data.cover.alt} width={item.data.cover.width} height={item.data.cover.height} loading="lazy" decoding="async" />}
         <h2>{item.data.title}</h2><p>{item.data.description}</p>
         <dl>{(route.contentType?.fields ?? []).filter(field => field.showOnList && item.data.fields[field.id] !== undefined).map(field =>
           <div><dt>{field.label}</dt><dd>{formatCptValue(item.data.fields[field.id], field)}</dd></div>)}</dl>
       </a>)}</div> : <p class="empty">尚無已發布的內容。</p>}
-    {route.totalPages! > 1 && <nav class="pagination" aria-label="內容分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : route.base + 'page/' + (route.page! - 1) + '/'}>← 上一頁</a>}<span>第 {route.page}／{route.totalPages} 頁</span>{route.page! < route.totalPages! && <a rel="next" href={route.base + 'page/' + (route.page! + 1) + '/'}>下一頁 →</a>}</nav>}
+    {route.totalPages! > 1 && <nav class="pagination" aria-label="內容分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : prefix + route.base + 'page/' + (route.page! - 1) + '/'}>← {t(locale, "prev")}</a>}<span>第 {route.page}／{route.totalPages} 頁</span>{route.page! < route.totalPages! && <a rel="next" href={route.base + 'page/' + (route.page! + 1) + '/'}>{t(locale, "next")} →</a>}</nav>}
   </section>}
-  {route.posts && <>{route.kind === 'blog' && <nav class="tags" aria-label="文章分類">{model.categories.filter(c => model.posts.some(p => p.data.category === c.id)).map(c => <a href={`/${c.slug}/`}>{c.name}</a>)}</nav>}<PostList posts={route.posts} categories={model.categories} />{!route.posts.length && <p class="empty">內容準備中。</p>}{route.totalPages! > 1 && <nav class="pagination" aria-label="文章分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : `${route.base}page/${route.page! - 1}/`}>← 上一頁</a>}<span>第 {route.page}／{route.totalPages} 頁</span>{route.page! < route.totalPages! && <a rel="next" href={`${route.base}page/${route.page! + 1}/`}>下一頁 →</a>}</nav>}</>}
+  {route.posts && <>{route.kind === 'blog' && <nav class="tags" aria-label="文章分類">{categories.filter(c => posts.some(p => p.data.category === c.id)).map(c => <a href={`${prefix}/${c.slug}/`}>{c.name}</a>)}</nav>}<PostList posts={route.posts} categories={categories} locale={locale} prefix={prefix} />{!route.posts.length && <p class="empty">{t(locale, "empty")}</p>}{route.totalPages! > 1 && <nav class="pagination" aria-label="文章分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : `${route.base}page/${route.page! - 1}/`}>← 上一頁</a>}<span>第 {route.page}／{route.totalPages} 頁</span>{route.page! < route.totalPages! && <a rel="next" href={`${route.base}page/${route.page! + 1}/`}>下一頁 →</a>}</nav>}</>}
 </Base>
