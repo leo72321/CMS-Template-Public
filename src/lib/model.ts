@@ -8,7 +8,7 @@ export type Page = { data: PageData; body: string; file: string; kind: 'page' };
 export type Cpt = { data: CptData; body: string; file: string; kind: 'cpt' };
 export type Document = Post | Page | Cpt;
 export type Route = {
-  path: string; title: string; description: string; locale?: string; alternates?: Record<string,string>;
+  path: string; title: string; description: string; siteTitle?: string; locale?: string; alternates?: Record<string,string>;
   kind: 'home' | 'blog' | 'post' | 'page' | 'category' | 'tag' | 'cpt' | 'cpt-index';
   noindex: boolean; document?: Document; posts?: Post[]; cpts?: Cpt[]; contentType?: ContentTypeDefinition; taxonomy?: Taxonomy;
   page?: number; totalPages?: number; base?: string;
@@ -241,7 +241,11 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
     topics: taxFor(input.topics, locale),
   });
   const localizedSite = (locale: string): Site => ({
-    ...site, language: locale as Site['language'], i18n: { ...site.i18n, enabled: false },
+    ...site, language: locale as Site['language'],
+    title: site.i18n.metadata[locale]?.title ?? site.title,
+    description: site.i18n.metadata[locale]?.description ?? site.description,
+    author: site.i18n.metadata[locale]?.author ?? site.author,
+    i18n: { ...site.i18n, enabled: false },
     // Legacy aliases and their root redirects belong exclusively to the default language.
     blogLegacyPaths: locale === def ? site.blogLegacyPaths : [],
   });
@@ -258,7 +262,7 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
     for (const route of view.routes) {
       const path = localizedPath(lang, route.path, site);
       if (byPath.has(path)) throw new Error('多語言網址衝突：' + path);
-      const localized: Route = { ...route, path, locale: lang, ...(route.base ? { base: localizedPath(lang, route.base, site) } : {}) };
+      const localized: Route = { ...route, path, locale: lang, siteTitle: view.site.title, ...(route.base ? { base: localizedPath(lang, route.base, site) } : {}) };
       routes.push(localized); byPath.set(path, localized);
       if (route.document) {
         const key = route.document.kind + ':' + translationGroup(route.document.data);
@@ -271,7 +275,8 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
   // Link article translations to one another; home and blog have equivalents as well.
   for (const route of routes) {
     const key = fingerprints.get(route.path);
-    if (key) route.alternates = { ...translationRoutes.get(key) };
+    if (key) route.alternates = Object.fromEntries(Object.entries(translationRoutes.get(key) ?? {})
+      .filter(([,path]) => !byPath.get(path)?.noindex));
     else if (route.kind === 'home' || route.kind === 'blog') {
       route.alternates = Object.fromEntries(languages.map(lang =>
         [lang, localizedPath(lang, route.kind === 'home' ? '/' : '/blog/', site)]));
