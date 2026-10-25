@@ -15,7 +15,12 @@ const date = z.preprocess(
   }, '日期無效，請使用 YYYY-MM-DD。'),
 );
 const imageURL = z.string().refine((s) => {
-  if (s.startsWith('/') && !s.startsWith('//') && !s.includes('..')) return true;
+  if (s.startsWith('/') && !s.startsWith('//') && !/[?#]/.test(s)) {
+    try {
+      const decoded = decodeURIComponent(s);
+      return !decoded.includes('..') && !decoded.includes('\\');
+    } catch { return false; }
+  }
   try { return new URL(s).protocol === 'https:'; } catch { return false; }
 }, '圖片須使用站內絕對路徑或 HTTPS 網址。');
 export const imageSchema = z.object({

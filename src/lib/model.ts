@@ -1,6 +1,6 @@
 import type { Site, PostData, PageData, CptData, ContentTypeDefinition, Taxonomy, Topic } from './schema';
 import { validateCptFields } from './cpt';
-import { contentLocale, localizedPath, translationGroup, t } from './i18n';
+import { contentLocale, localePrefix, localizedPath, translationGroup, t } from './i18n';
 import { manageRedirects, type RedirectHistory } from './redirect-manager';
 
 export type Post = { data: PostData; body: string; file: string; kind: 'post' };
@@ -101,11 +101,12 @@ function makeSingleModel(input: Input, site: Site, now = new Date(), preview = f
     routes.push(route); byPath.set(key, route);
   };
   add({ path: '/', title: site.title, description: site.description, kind: 'home', noindex: !canIndex }, true);
+  const pageTitle = (title: string, n: number) => n === 1 ? title : title + t(site.language, 'pageTitleSuffix', { page: String(n) }, site);
   const archive = (kind: 'blog' | 'category' | 'tag', base: string, title: string, description: string, items: Post[], taxonomy?: Taxonomy) => {
     const totalPages = Math.max(1, Math.ceil(items.length / site.pageSize));
     const indexArchive = !!taxonomy?.indexable && !!description.trim() && items.filter(eligible).length >= site.minArchiveItems;
     for (let n = 1; n <= totalPages; n++) add({
-      kind, path: n === 1 ? base : `${base}page/${n}/`, base, title: n === 1 ? title : `${title}・第 ${n} 頁`, description,
+      kind, path: n === 1 ? base : `${base}page/${n}/`, base, title: pageTitle(title, n), description,
       noindex: !canIndex || n > 1 || (kind !== 'blog' && !indexArchive) || (kind === 'blog' && (!site.blogIndexable || !items.some(eligible))),
       posts: items.slice((n - 1) * site.pageSize, n * site.pageSize), taxonomy, page: n, totalPages,
     }, n === 1 && (kind === 'blog' || kind === 'category'));
@@ -119,7 +120,7 @@ function makeSingleModel(input: Input, site: Site, now = new Date(), preview = f
     const base = '/' + type.id + '/';
     for (let n = 1; n <= totalPages; n++) add({
       kind: 'cpt-index', path: n === 1 ? base : base + 'page/' + n + '/',
-      base, title: n === 1 ? type.name : type.name + '・第 ' + n + ' 頁',
+      base, title: pageTitle(type.name, n),
       description: type.description || '瀏覽' + type.name + '。',
       noindex: !canIndex || !type.indexable || n > 1 || !members.some(eligible),
       contentType: type, cpts: members.slice((n - 1) * site.pageSize, n * site.pageSize),
@@ -192,8 +193,9 @@ function makeSingleModel(input: Input, site: Site, now = new Date(), preview = f
     .sort((a, b) => b.score - a.score || b.post.data.publishedAt.localeCompare(a.post.data.publishedAt) || a.post.data.uid.localeCompare(b.post.data.uid))
     .slice(0, Math.max(0, limit))
     .map(x => x.post);
+  const candidateRedirects = new Map(redirects);
   const redirectState = manageRedirects(redirects, redirectHistory, site.redirectManagement, now);
-  return { ...input, posts, pages, cpts, routes, byPath, redirects: redirectState.redirects, redirectState, canIndex, related, site };
+  return { ...input, posts, pages, cpts, routes, byPath, candidateRedirects, redirects: redirectState.redirects, redirectState, canIndex, related, site };
 }
 
 /**
@@ -249,10 +251,27 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
     // Legacy aliases and their root redirects belong exclusively to the default language.
     blogLegacyPaths: locale === def ? site.blogLegacyPaths : [],
   });
-  const primary = makeSingleModel(slice(def), localizedSite(def), now, preview, redirectHistory);
+  const scopedHistory = (locale: string): RedirectHistory | undefined => {
+    if (!redirectHistory) return undefined;
+    const prefix = localePrefix(locale, site);
+    const otherPrefixes = languages.filter(x => x !== def).map(x => localePrefix(x, site) + '/');
+    const entries: RedirectHistory['entries'] = {};
+    for (const [from, record] of Object.entries(redirectHistory.entries)) {
+      if (locale === def) {
+        if (!otherPrefixes.some(p => from.startsWith(p))) entries[from] = record;
+      } else if (from.startsWith(prefix + '/')) {
+        entries[from.slice(prefix.length)] = {
+          ...record,
+          target: record.target.startsWith(prefix + '/') ? record.target.slice(prefix.length) : record.target,
+        };
+      }
+    }
+    return { ...redirectHistory, entries };
+  };
+  const primary = makeSingleModel(slice(def), localizedSite(def), now, preview, scopedHistory(def));
   const views = new Map<string, typeof primary>([[def, primary]]);
   for (const lang of languages.filter(x => x !== def)) views.set(lang,
-    makeSingleModel(slice(lang), localizedSite(lang), now, preview));
+    makeSingleModel(slice(lang), localizedSite(lang), now, preview, scopedHistory(lang)));
   const routes: Route[] = [];
   const byPath = new Map<string, Route>();
   const translationRoutes = new Map<string, Record<string,string>>();
@@ -282,22 +301,22 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
         [lang, localizedPath(lang, route.kind === 'home' ? '/' : '/blog/', site)]));
     }
   }
-  const redirects = new Map<string,string>(primary.redirects);
+  const candidateRedirects = new Map<string,string>(primary.candidateRedirects);
   for (const lang of languages.filter(x => x !== def)) {
     const view = views.get(lang)!;
-    for (const [from,to] of view.redirects) {
+    for (const [from,to] of view.candidateRedirects) {
       const source = localizedPath(lang, from, site);
       const target = localizedPath(lang, to, site);
-      if (redirects.has(source) || byPath.has(source)) throw new Error('多語言轉址衝突：' + source);
-      redirects.set(source,target);
+      if (candidateRedirects.has(source) || byPath.has(source)) throw new Error('多語言轉址衝突：' + source);
+      candidateRedirects.set(source,target);
     }
   }
-  for (const [from,to] of redirects) {
+  for (const [from,to] of candidateRedirects) {
     if (byPath.has(from) || !byPath.has(to)) throw new Error('多語言轉址來源或目標不正確：' + from + ' → ' + to);
   }
-  if (redirects.size > site.redirectManagement.maxActive) throw new Error('多語言 301 超過容量：' + redirects.size);
+  const redirectState = manageRedirects(candidateRedirects, redirectHistory, site.redirectManagement, now);
   return {
-    ...primary, site, routes, byPath, redirects, views,
+    ...primary, site, routes, byPath, candidateRedirects, redirects: redirectState.redirects, redirectState, views,
     localizedPosts: new Map(languages.map(lang => [lang, views.get(lang)!.posts])),
     localizedPages: new Map(languages.map(lang => [lang, views.get(lang)!.pages])),
     localizedCategories: new Map(languages.map(lang => [lang, views.get(lang)!.categories])),
@@ -311,4 +330,3 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
   };
 }
 export type Model = ReturnType<typeof makeModel>;
-
