@@ -5,7 +5,7 @@ const site=JSON.parse(readFileSync(p,'utf8'));
 site.domain='i18n-test.example.org';
 site.indexable=true;
 site.i18n={enabled:true,defaultLocale:'zh-TW',locales:['zh-TW','en','es'],languageSuggestion:true};
-site.headerNavPages=[...new Set([...(site.headerNavPages??[]),'i18n-fixture'])];
+site.headerNavPages=[...new Set([...(site.headerNavPages??['about']),'i18n-fixture'])];
 writeFileSync(p,JSON.stringify(site,null,2)+'\n');
 for(const d of [
   {file:'i18n-fixture',uid:'i18n-fixture',title:'多語言測試文章',slug:'i18n-fixture',locale:null},
