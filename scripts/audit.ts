@@ -5,6 +5,11 @@ import { load } from 'cheerio';
 import { readModel, files, run } from './lib/content';
 import { normalizePath, encodePath, type Route } from '../src/lib/model';
 import { buildSitemapParts, renderSitemapIndex, renderSitemapPart } from '../src/lib/sitemap';
+import { gtmInlineCode } from '../src/lib/gtm';
+// Compare emitted inline code to the actual approved component, not a magic substring.
+const localeAstroSource = readFileSync('src/components/LanguageSwitcher.astro', 'utf8');
+const approvedLocaleScript = localeAstroSource.match(/<script is:inline>([\s\S]*?)<\/script>/)?.[1]?.trim();
+if (!approvedLocaleScript) throw new Error('找不到預期的語言切換內嵌腳本，拒絕驗收。');
 run(() => {
   const model = readModel();
   const errors: string[] = [], warnings: string[] = [];
@@ -47,18 +52,19 @@ run(() => {
     if ($('meta[property="og:url"]').attr('content') !== canonical) errors.push(`${route.path}：OG 分享網址不正確。`);
     if (!$('script[type="application/ld+json"]').length) errors.push(`${route.path}：缺少結構化資料。`);
     $('script[type="application/ld+json"]').each((_, element) => { try { JSON.parse($(element).text()); } catch { errors.push(`${route.path}：結構化資料不是有效的 JSON。`); } });
-    // Only permit the known, first-party inline bootstraps outside the article body.
     let gtmCount = 0, localeCount = 0;
     $('script:not([type="application/ld+json"])').each((_, element) => {
-      const script = $(element), source = script.text();
+      const script = $(element), source = script.text().trim();
       if (script.attr('src') !== undefined || script.closest('main, .prose').length) {
         errors.push(`${route.path}：不允許外部或內容區塊的 JavaScript。`); return;
       }
-      const isGtm = !!model.site.gtmId && source.includes('www.googletagmanager.com/gtm.js') && source.includes(model.site.gtmId) && source.includes('dataLayer');
-      const isLocale = model.site.i18n.enabled && model.site.i18n.languageSuggestion && source.includes('cms:locale-preference:v1') && source.includes('[data-locale-link]');
+      const isGtm = !!model.site.gtmId && script.parent().is('head')
+        && source === gtmInlineCode(model.site.gtmId);
+      const isLocale = model.site.i18n.enabled && model.site.i18n.languageSuggestion
+        && source === approvedLocaleScript;
       if (isGtm && ++gtmCount <= 1) return;
       if (isLocale && ++localeCount <= 1) return;
-      errors.push(`${route.path}：出現未許可的前端 JavaScript。`);
+      errors.push(`${route.path}：前端 JavaScript 未符合允許清單（完全內容比對）。`);
     });
     $('img').each((_, element) => {
       const img = $(element);

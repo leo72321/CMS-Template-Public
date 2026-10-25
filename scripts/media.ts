@@ -145,7 +145,14 @@ run(async () => {
       throw new Error('寫入前偵測到並行修改，拒絕覆寫。');
     }
     renameSync(tempDoc, doc.file);
-    renameSync(tempManifest, manifestFile);
+    try {
+      renameSync(tempManifest, manifestFile);
+    } catch (error) {
+      // A two-file rename is not a transaction. Roll the first file back if the
+      // second rename failed, so the workspace is not left in a split state.
+      writeFileSync(doc.file, originalDoc);
+      throw error;
+    }
   } finally {
     try { unlinkSync(tempDoc); } catch { /* already renamed */ }
     try { unlinkSync(tempManifest); } catch { /* already renamed */ }

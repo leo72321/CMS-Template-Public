@@ -7,6 +7,8 @@ test('Actions 媒體上傳表單使用既有 S3 Secrets，支援來源 URL/Repo 
   assert.match(workflow, /^  workflow_dispatch:/m);
   assert.match(workflow, /source_path:/);
   assert.match(workflow, /source_url:/);
+  assert.match(workflow, /MEDIA_RUNNER_TYPE.*self-hosted/);
+  assert.match(workflow, /DNS Rebinding\/SSRF/);
   assert.match(workflow, /uid:/);
   assert.match(workflow, /field:/);
   assert.match(workflow, /dry_run:[\s\S]*?default: true/);

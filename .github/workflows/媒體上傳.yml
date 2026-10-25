@@ -84,6 +84,7 @@ jobs:
         env:
           MEDIA_SOURCE_PATH: ${{ inputs.source_path }}
           MEDIA_SOURCE_URL: ${{ inputs.source_url }}
+          MEDIA_RUNNER_TYPE: ${{ inputs.runner }}
         run: |
           set -euo pipefail
           if [[ -n "$MEDIA_SOURCE_PATH" && -n "$MEDIA_SOURCE_URL" ]] || [[ -z "$MEDIA_SOURCE_PATH" && -z "$MEDIA_SOURCE_URL" ]]; then
@@ -91,6 +92,12 @@ jobs:
             exit 1
           fi
           if [[ -n "$MEDIA_SOURCE_URL" ]]; then
+            # An arbitrary remote hostname may resolve to a private IP or rebind.
+            # Do not expose the user's self-hosted runner network to this input.
+            if [[ "$MEDIA_RUNNER_TYPE" == "self-hosted" ]]; then
+              echo '自架 Runner 禁止從任意網址下載（防範 DNS Rebinding/SSRF）；請使用 source_path 或 GitHub Hosted。' >&2
+              exit 1
+            fi
             if [[ "$MEDIA_SOURCE_URL" != https://* ]]; then
               echo '只接受 HTTPS 檔案直連網址。' >&2
               exit 1
