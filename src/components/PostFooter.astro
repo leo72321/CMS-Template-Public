@@ -1,7 +1,7 @@
 ---
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathFor, type Model, type Post } from '../lib/model';
+import { pathFor, normalizePath, type Model, type Post } from '../lib/model';
 import PostList from './PostList.astro';
 import PostFooterCustom from './PostFooterCustom.astro';
 interface Props { model: Model; post: Post; locale?: string; }
@@ -19,7 +19,7 @@ for (const match of post.body.matchAll(/(?:\]\(|href\s*=\s*["'])(\/?[^\s"'?#)]+)
   try {
     const raw = match[1];
     const url = new URL(raw, 'https://' + model.site.domain);
-    if (url.hostname === model.site.domain) hrefs.add(decodeURIComponent(url.pathname));
+    if (url.hostname === model.site.domain) hrefs.add(normalizePath(url.pathname));
   } catch { /* invalid links are reported by the existing audit */ }
 }
 const uidByPath = new Map<string, string>();

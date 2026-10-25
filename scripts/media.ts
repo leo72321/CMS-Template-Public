@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
-import { basename } from 'node:path';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { loadMediaIndex, type MediaEntry } from './lib/media-index';
 import matter from 'gray-matter';
 import { readInput, run } from './lib/content';
@@ -122,8 +123,33 @@ run(async () => {
   }
   // 只在全部 API 上傳及本次 URL HEAD 成功後，才更新文章與媒體索引。
   if (readFileSync(doc.file, 'utf8') !== original) throw new Error('上傳期間內容被其他程序修改，未覆寫；請重新執行。');
-  writeFileSync('content/media/manifest.json', JSON.stringify({ ...stored.manifest, uploads: [...records.values()] }, null, 2) + '\n');
-  writeFileSync(doc.file, matter.stringify(parsed.content, parsed.data));
+  const manifestFile = 'content/media/manifest.json';
+  const originalManifest = readFileSync(manifestFile, 'utf8');
+  const current = JSON.parse(originalManifest) as typeof stored.manifest;
+  if (!Array.isArray(current.uploads)) throw new Error('媒體清單缺少 uploads。');
+  // Re-read the manifest immediately before writing; reject clobbering concurrent uploads.
+  const latest = new Map(current.uploads.map(item => [item.url, item] as const));
+  for (const receipt of receipts) {
+    latest.set(receipt.url, records.get(receipt.url)!);
+  }
+  const nextManifest = JSON.stringify({ ...current, uploads: [...latest.values()] }, null, 2) + '\n';
+  const originalDoc = readFileSync(doc.file, 'utf8');
+  if (originalDoc !== original) throw new Error('文章在上傳期間被更新，拒絕覆寫。');
+  const nextDoc = matter.stringify(parsed.content, parsed.data);
+  const tempManifest = join(dirname(manifestFile), '.manifest-' + randomUUID() + '.tmp');
+  const tempDoc = join(dirname(doc.file), '.media-' + randomUUID() + '.tmp');
+  try {
+    writeFileSync(tempManifest, nextManifest);
+    writeFileSync(tempDoc, nextDoc);
+    if (readFileSync(manifestFile, 'utf8') !== originalManifest || readFileSync(doc.file, 'utf8') !== original) {
+      throw new Error('寫入前偵測到並行修改，拒絕覆寫。');
+    }
+    renameSync(tempDoc, doc.file);
+    renameSync(tempManifest, manifestFile);
+  } finally {
+    try { unlinkSync(tempDoc); } catch { /* already renamed */ }
+    try { unlinkSync(tempManifest); } catch { /* already renamed */ }
+  }
   console.log('✓ ' + (isImage ? '圖片' : '附件') + '已上傳並以一次 HEAD 確認公開連結：' + url
     + '\n已更新 ' + doc.file + (values.field ? '（fields.' + values.field + '）' : '')
     + '\n請執行 npm run verify，然後提交內容與 content/media/manifest.json。');
