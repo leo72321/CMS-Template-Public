@@ -7,7 +7,7 @@ import { normalizePath, encodePath, type Route } from '../src/lib/model';
 import { buildSitemapParts, renderSitemapIndex, renderSitemapPart } from '../src/lib/sitemap';
 import { gtmInlineCode } from '../src/lib/gtm';
 // Compare emitted inline code to the actual approved component, not a magic substring.
-const localeAstroSource = readFileSync('src/components/LanguageSwitcher.astro', 'utf8');
+const localeAstroSource = readFileSync(new URL('../src/components/LanguageSwitcher.astro', import.meta.url), 'utf8');
 const approvedLocaleScript = localeAstroSource.match(/<script is:inline>([\s\S]*?)<\/script>/)?.[1]?.trim();
 if (!approvedLocaleScript) throw new Error('找不到預期的語言切換內嵌腳本，拒絕驗收。');
 run(() => {
