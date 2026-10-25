@@ -5,8 +5,10 @@ import { basename } from 'node:path';
 type Lock = { urls: Record<string, string>; redirects: Record<string, string> };
 export function checkURLs(model: Model, previous: Lock, retired = new Set<string>()) {
   const current = Object.fromEntries([
-    ...[...model.posts, ...model.pages, ...model.cpts].map(d => [d.data.uid, pathFor(d, model.categories)]),
-    ...model.routes.filter(r => r.taxonomy && r.page === 1).map(r => [`${r.kind}:${r.taxonomy!.id}`, r.path]),
+    ...model.routes.filter(r => r.document).map(r => [r.document!.data.uid, r.path]),
+    ...model.routes.filter(r => r.taxonomy && r.page === 1).map(r => [
+      r.kind + ':' + (r.locale && r.locale !== model.site.i18n.defaultLocale ? r.locale + ':' : '') + r.taxonomy!.id, r.path,
+    ]),
   ]);
   const errors: string[] = [];
   for (const [uid, oldPath] of Object.entries(previous.urls)) {
