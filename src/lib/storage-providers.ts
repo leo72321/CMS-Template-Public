@@ -1,5 +1,5 @@
 export function isValidDomain(domain: string): boolean {
-  return /^(?=.{4,253}$)[a-z0-9-]+(?:\\.[a-z0-9-]+)+$/.test(domain)
+  return /^(?=.{4,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(domain)
     && domain.split('.').every(label => label.length <= 63 && !label.startsWith('-') && !label.endsWith('-'));
 }
 
