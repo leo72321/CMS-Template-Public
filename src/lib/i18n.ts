@@ -1,9 +1,7 @@
 import type { Site } from './schema';
 
-// Central language vocabulary. Extend this registry and the site schema together when adding locales.
-export const localeNames: Record<string, string> = {
-  'zh-TW': '繁體中文', en: 'English', es: 'Español',
-};
+// Built-in examples are fallback UI translations, NOT the allowed language list.
+// Any BCP 47 language may be enabled in site.config.json.
 const dictionary = {
   'zh-TW': {
     home: '首頁', blog: '全部文章', newest: '最新文章', subjects: '依主題閱讀',
@@ -34,10 +32,27 @@ const dictionary = {
   },
 } as const;
 export type MessageKey = keyof typeof dictionary['zh-TW'];
-export function t(locale: string, key: MessageKey, variables: Record<string, string> = {}): string {
-  const item = dictionary[locale as keyof typeof dictionary] ?? dictionary['zh-TW'];
+
+function builtinMessages(locale: string): typeof dictionary[keyof typeof dictionary] {
+  if (locale === 'zh-TW' || locale.startsWith('zh-Hant')) return dictionary['zh-TW'];
+  const primary = locale.split('-')[0];
+  return primary === 'es' ? dictionary.es : dictionary.en;
+}
+
+export function localeDisplayName(locale: string, site?: Site): string {
+  const override = site?.i18n.metadata[locale]?.label;
+  if (override) return override;
+  try {
+    const display = new Intl.DisplayNames([locale], { type: 'language' }).of(locale);
+    return display || locale;
+  } catch { return locale; }
+}
+
+/** Text for a particular locale; sites can override ANY language without changing source code. */
+export function t(locale: string, key: MessageKey, variables: Record<string, string> = {}, site?: Site): string {
+  const template = site?.i18n.messages[locale]?.[key] ?? builtinMessages(locale)[key];
   return Object.entries(variables).reduce((value, [name, replacement]) =>
-    value.replaceAll('{' + name + '}', replacement), item[key] as string);
+    value.replaceAll('{' + name + '}', replacement), template);
 }
 export function contentLocale(data: { locale?: string }, site: Site): string {
   return site.i18n.enabled ? (data.locale ?? site.i18n.defaultLocale) : site.language;
