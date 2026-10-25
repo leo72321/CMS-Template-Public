@@ -207,9 +207,9 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
   const documents = [...input.posts, ...input.pages, ...(input.cpts ?? [])];
   const taxonomies = [...input.categories, ...input.tags, ...input.topics];
   for (const item of [...documents, ...taxonomies]) {
-    const locale = contentLocale(item.data ? item.data : item, site);
+    const locale = contentLocale('data' in item ? item.data : item, site);
     if (!languages.includes(locale as typeof languages[number])) throw new Error('未啟用的內容語言：' + locale);
-    if (locale !== def && !(item.data ? item.data.translationKey : item.translationKey)) {
+    if (locale !== def && !('data' in item ? item.data.translationKey : item.translationKey)) {
       throw new Error('翻譯內容須指定 translationKey：' + ('file' in item ? item.file : item.id));
     }
   }
