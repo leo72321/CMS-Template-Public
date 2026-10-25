@@ -25,6 +25,12 @@ run(() => {
     // Parse only the current page; do not retain thousands of Cheerio DOM trees.
     const $ = load(readFileSync(entry.file, 'utf8'));
     if ($('h1').length !== 1) errors.push(`${route.path}：必須且只能有一個 H1（一級標題）。`);
+    if ($('html').attr('lang') !== (route.locale ?? model.site.language)) errors.push(route.path + '：HTML lang 與語言設定不一致。');
+    if (model.site.i18n.enabled) {
+      for (const [locale, alternate] of Object.entries(route.alternates ?? {})) {
+        if (!route.noindex && $('link[rel="alternate"][hreflang="'+locale+'"]').attr('href') !== 'https://' + model.site.domain + encodePath(alternate)) errors.push(route.path + '：hreflang 不正確。');
+      }
+    }
     if ($('title').length !== 1 || !$('title').text().trim()) errors.push(`${route.path}：缺少唯一的頁面標題。`);
     if ($('meta[name="description"]').length !== 1 || !$('meta[name="description"]').attr('content')?.trim()) errors.push(`${route.path}：缺少唯一的 SEO 簡介。`);
     const canonical = `https://${model.site.domain}${encodePath(route.path)}`;
@@ -35,7 +41,7 @@ run(() => {
     if (!$('script[type="application/ld+json"]').length) errors.push(`${route.path}：缺少結構化資料。`);
     $('script[type="application/ld+json"]').each((_, element) => { try { JSON.parse($(element).text()); } catch { errors.push(`${route.path}：結構化資料不是有效的 JSON。`); } });
     $('script:not([type="application/ld+json"])').each((_, element) => {
-      if (!model.site.gtmId || !$(element).text().includes('www.googletagmanager.com/gtm.js')) errors.push(`${route.path}：出現公版以外的前端 JavaScript，請確認必要性並調整效能規範。`);
+      if ((!model.site.gtmId || !$(element).text().includes('www.googletagmanager.com/gtm.js')) && !(model.site.i18n.enabled && model.site.i18n.languageSuggestion && $(element).text().includes('cms:locale-preference:v1'))) errors.push(`${route.path}：出現公版以外的前端 JavaScript，請確認必要性並調整效能規範。`);
     });
     $('img').each((_, element) => {
       const img = $(element);
