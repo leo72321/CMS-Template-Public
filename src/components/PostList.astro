@@ -1,12 +1,12 @@
 ---
 import { postPath, type Post } from '../lib/model';
 import { t } from '../lib/i18n';
-import type { Taxonomy } from '../lib/schema';
-interface Props { posts: Post[]; categories: Taxonomy[]; prefix?: string; locale?: string; }
-const { posts, categories, prefix = '', locale = 'zh-TW' } = Astro.props;
+import type { Site, Taxonomy } from '../lib/schema';
+interface Props { posts: Post[]; categories: Taxonomy[]; prefix?: string; locale?: string; site?: Site; }
+const { posts, categories, prefix = '', locale = 'zh-TW', site } = Astro.props;
 ---
 <div class="post-list">{posts.map(post => <article class="post-card">
-  <div class="meta"><time datetime={post.data.publishedAt}>{post.data.publishedAt}</time><span>{categories.find(c => c.id === post.data.category)?.name}</span>{post.data.sample && <span>{t(locale, "sample")}</span>}</div>
+  <div class="meta"><time datetime={post.data.publishedAt}>{post.data.publishedAt}</time><span>{categories.find(c => c.id === post.data.category)?.name}</span>{post.data.sample && <span>{t(locale, "sample", {}, site)}</span>}</div>
   <h2><a href={prefix + postPath(post, categories)}>{post.data.title}<span aria-hidden="true">↗</span></a></h2>
   <p>{post.data.description}</p>
 </article>)}</div>
