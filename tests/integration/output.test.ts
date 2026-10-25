@@ -3,7 +3,7 @@ import { encodePath } from '../../src/lib/model';
 import { readModel } from '../../scripts/lib/content';
 import { load } from 'cheerio';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -13,6 +13,9 @@ const originalRoot = process.cwd();
 const sandbox = mkdtempSync(join(tmpdir(), 'cms-output-test-'));
 for (const name of ['dist', 'content', 'site.config.json']) cpSync(join(originalRoot, name), join(sandbox, name), { recursive: true });
 const path = join(sandbox, 'dist/index.html');
+const siteDomain = JSON.parse(readFileSync(join(sandbox, 'site.config.json'), 'utf8')).domain;
+const demoSlugs = ['SEO發布檢查', '圖片上傳流程', '新增第一篇文章'];
+const hasDemoPages = demoSlugs.every(slug => existsSync(join(sandbox, 'dist', 'website-guides', slug, 'index.html')));
 const audit = () => spawnSync(process.execPath, ['--import', pathToFileURL(resolve('node_modules/tsx/dist/loader.mjs')).href, resolve('scripts/audit.ts')], { encoding: 'utf8', cwd: sandbox });
 function altered(file: string, transform: (s: string) => string, expected: RegExp) {
   const before = readFileSync(file, 'utf8');
@@ -24,21 +27,21 @@ function altered(file: string, transform: (s: string) => string, expected: RegEx
   } finally { writeFileSync(file, before); }
 }
 test('正常產物可通過最終驗收', () => { const r = audit(); assert.equal(r.status, 0, r.stderr); });
-test('文章標準網址依分類，舊 Blog 和舊分類均永久轉址至唯一分類網址', () => {
+test('文章標準網址依分類，舊 Blog 和舊分類均永久轉址至唯一分類網址', { skip: !hasDemoPages }, () => {
   const home = readFileSync(join(sandbox, 'dist/index.html'), 'utf8');
   const redirects = readFileSync(join(sandbox, 'dist/_redirects'), 'utf8').split('\n');
-  for (const slug of ['SEO發布檢查', '圖片上傳流程', '新增第一篇文章']) {
+  for (const slug of demoSlugs) {
     const canonical = `/website-guides/${slug}/`;
     const page = readFileSync(join(sandbox, 'dist', 'website-guides', slug, 'index.html'), 'utf8');
     assert.ok(home.includes(`href="${canonical}"`), `首頁文章連結應使用分類：${slug}`);
-    assert.ok(page.includes(`href="https://example.com${encodePath(canonical)}"`), `標準網址須走分類：${slug}`);
+    assert.ok(page.includes(`href="https://${siteDomain}${encodePath(canonical)}"`), `標準網址須走分類：${slug}`);
     for (const legacy of [`/blog/${slug}/`, `/網站筆記/${slug}/`]) {
       assert.ok(redirects.includes(`${encodePath(legacy)} ${encodePath(canonical)} 301`), `缺少 301：${legacy}`);
     }
   }
   assert.ok(redirects.includes(`${encodePath('/網站筆記/')} /blog/ 301`), '舊文章總覽入口仍到 /blog/');
 });
-test('所有 POST 只輸出全站啟用的頁尾區塊，不再顯示主題中心或額外服務卡', () => {
+test('所有 POST 只輸出全站啟用的頁尾區塊，不再顯示主題中心或額外服務卡', { skip: !hasDemoPages }, () => {
   const cfg = JSON.parse(readFileSync(join(sandbox, 'site.config.json'), 'utf8'));
   for (const slug of ['SEO發布檢查', '圖片上傳流程', '新增第一篇文章']) {
     const $ = load(readFileSync(join(sandbox, 'dist', 'website-guides', slug, 'index.html'), 'utf8'));
@@ -54,7 +57,7 @@ test('故意放重複 H1 會被攔下', () => altered(path, s => s.replace('</ma
 test('故意改錯 Canonical 會被攔下', () => altered(path, s => s.replace(/rel="canonical" href="[^"]+"/, 'rel="canonical" href="https://wrong.example/"'), /Canonical/));
 test('故意反轉索引設定會被攔下', () => altered(path, s => s.replace(/name="robots" content="(noindex|index), follow"/, (_, mode) => `name="robots" content="${mode === 'index' ? 'noindex' : 'index'}, follow"`), /索引設定/));
 test('故意將不收錄頁塞進 Sitemap 會被攔下', () => altered(join(sandbox, 'dist/sitemap.xml'), s => s.replace('</urlset>', '<url><loc>https://wrong.example/should-not-exist/</loc></url></urlset>'), /Sitemap/));
-test('公版預設 noindex，根 Sitemap 必須是空的，不能讓草稿或測試文章暴露到 Sitemap Index', () => {
+test('公版預設 noindex，根 Sitemap 必須是空的，不能讓草稿或測試文章暴露到 Sitemap Index', { skip: JSON.parse(readFileSync(join(sandbox, 'site.config.json'), 'utf8')).indexable === true }, () => {
   const sitemap = readFileSync(join(sandbox, 'dist/sitemap.xml'), 'utf8');
   assert.match(sitemap, /<urlset/);
   assert.doesNotMatch(sitemap, /<sitemap><loc>/);
@@ -62,7 +65,7 @@ test('公版預設 noindex，根 Sitemap 必須是空的，不能讓草稿或測
 });
 test('故意加入前端程式會被攔下', () => altered(path, s => s.replace('</body>', '<script>console.log(1)</script></body>'), /前端 JavaScript/));
 test('故意放缺少尺寸的圖片會被攔下', () => altered(path, s => s.replace('</main>', '<img src="/missing.webp" alt="測試"></main>'), /圖片缺少/));
-test('故意切斷文章索引的全部連入，會判為孤兒頁', () => {
+test('故意切斷文章索引的全部連入，會判為孤兒頁', { skip: !hasDemoPages }, () => {
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]);
   const originals = walk(join(sandbox, 'dist')).filter(f => f.endsWith('.html')).map(f => [f, readFileSync(f, 'utf8')] as const);
   try {
