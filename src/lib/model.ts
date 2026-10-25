@@ -258,7 +258,7 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
     for (const route of view.routes) {
       const path = localizedPath(lang, route.path, site);
       if (byPath.has(path)) throw new Error('多語言網址衝突：' + path);
-      const localized: Route = { ...route, path, locale: lang };
+      const localized: Route = { ...route, path, locale: lang, ...(route.base ? { base: localizedPath(lang, route.base, site) } : {}) };
       routes.push(localized); byPath.set(path, localized);
       if (route.document) {
         const key = route.document.kind + ':' + translationGroup(route.document.data);
