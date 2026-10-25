@@ -34,7 +34,7 @@ assert.match(es,/href="https:\/\/i18n-test.example.org\/es\/i18n-espanol\/"/);
 assert.match(ja,/ホーム/);
 assert.match(ja,/日本語サイト/);
 assert.match(pt,/Site em português/);
-assert.match(pt,/href="https:\\/\\/i18n-test.example.org\\/pt-br\\/video-em-portugues\\/"/);
+assert.ok(pt.includes('href="https://i18n-test.example.org/pt-br/video-em-portugues/"'));
 const sitemap=readFileSync('dist/sitemap.xml','utf8');
 assert.match(sitemap,/sitemapindex/);
 console.log('✓ 6-language live-build routes, localized UI, canonical and hreflang verified');
