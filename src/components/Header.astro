@@ -5,7 +5,7 @@ interface Props { model: Model; route: Route; }
 const { model, route } = Astro.props;
 const locale = route.locale ?? model.site.language;
 const prefix = localePrefix(locale, model.site);
-const pages = ('localizedPages' in model ? model.localizedPages.get(locale) : model.pages) ?? model.pages;
+const pages = ('localizedPages' in model ? (model.localizedPages as Map<string, typeof model.pages>).get(locale) : model.pages) ?? model.pages;
 const types = model.site.contentTypes;
 const pathname = Astro.url.pathname;
 const current = (href: string) => pathname === href ? 'page' : undefined;
