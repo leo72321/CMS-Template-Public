@@ -15,5 +15,5 @@ const primaryPages = model.pages.filter(p => model.site.headerNavPages.includes(
 ---
 <header class="site-header">
   <a class="brand" href={prefix + "/"} aria-current={current(prefix + "/")}>{route.siteTitle ?? model.site.title}<span class="brand-dot" aria-hidden="true"></span></a>
-  <nav aria-label="主要導覽"><a href={prefix + "/blog/"} aria-current={current(prefix + "/blog/")}>{t(locale, "blog")}</a>{types.map(t => <a href={prefix + '/' + t.id + '/'} aria-current={current(prefix + '/' + t.id + '/')}>{t.name}</a>)}{primaryPages.map(p => <a href={`${prefix}/${p.data.slug}/`} aria-current={current(`${prefix}/${p.data.slug}/`)}>{p.data.title}</a>)}</nav>
+  <nav aria-label="主要導覽"><a href={prefix + "/blog/"} aria-current={current(prefix + "/blog/")}>{t(locale, "blog", {}, model.site)}</a>{types.map(t => <a href={prefix + '/' + t.id + '/'} aria-current={current(prefix + '/' + t.id + '/')}>{t.name}</a>)}{primaryPages.map(p => <a href={`${prefix}/${p.data.slug}/`} aria-current={current(`${prefix}/${p.data.slug}/`)}>{p.data.title}</a>)}</nav>
 </header>

@@ -1,0 +1,27 @@
+name: 公版版本紀錄驗收
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  version:
+    if: github.repository == 'leo72321/CMS-Template-Public'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: 確認目前版本號與更新紀錄一致
+        run: npm run version:check
+      - name: 確認 PR 有針對公版改動升版
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: npm run version:compare

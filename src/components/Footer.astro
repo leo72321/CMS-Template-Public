@@ -6,4 +6,4 @@ interface Props { site: Site; route: Route; }
 const { site, route } = Astro.props;
 const locale = route.locale ?? site.language;
 ---
-<footer class="site-footer"><span>© {new Date().getFullYear()} {route.siteTitle ?? site.title}</span><a href={localePrefix(locale, site) + "/blog/"}>{t(locale, "index")}</a></footer>
+<footer class="site-footer"><span>© {new Date().getFullYear()} {route.siteTitle ?? site.title}</span><a href={localePrefix(locale, site) + "/blog/"}>{t(locale, "index", {}, site)}</a></footer>

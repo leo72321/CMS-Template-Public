@@ -26,7 +26,14 @@ export const imageSchema = z.object({
   variants: z.array(z.object({ url: imageURL, width: z.number().int().positive() }).strict()).default([]),
   ogUrl: imageURL.optional(),
 }).strict();
-export const localeCode = z.enum(['zh-TW', 'en', 'es']);
+// Accept any well-formed BCP 47 language tag (ja, fr, pt-BR, zh-Hant-TW...).
+// Canonicalize at the schema boundary so the model, routes and hreflang agree.
+export const localeCode = z.string().trim().min(2).max(35).refine(value => {
+  if (!/^[A-Za-z0-9-]+$/.test(value)) return false;
+  try { return Intl.getCanonicalLocales(value).length === 1; }
+  catch { return false; }
+}, '請使用有效的 BCP 47 語言代碼，例如 zh-TW、en、ja、fr、pt-BR。')
+  .transform(value => Intl.getCanonicalLocales(value)[0]);
 const base = {
   locale: localeCode.optional(),
   translationKey: segment.optional(),
@@ -162,7 +169,13 @@ export const siteSchema = z.object({
     defaultLocale: localeCode.default('zh-TW'),
     locales: z.array(localeCode).min(1).default(['zh-TW']),
     languageSuggestion: z.boolean().default(true),
-    metadata: z.record(z.string(), z.object({ title: z.string().trim().min(1), description: z.string().trim().min(1), author: z.string().trim().min(1).optional() }).strict()).default({}),
+    metadata: z.record(z.string(), z.object({
+      title: z.string().trim().min(1), description: z.string().trim().min(1),
+      author: z.string().trim().min(1).optional(),
+      label: z.string().trim().min(1).max(80).optional(),
+    }).strict()).default({}),
+    // Optional UI strings for any custom locale. No code changes are needed to add languages.
+    messages: z.record(z.string(), z.record(z.string(), z.string().trim().min(1))).default({}),
   }).strict().prefault({ enabled: false }),
   indexable: z.boolean().default(false),
   productionBranch: z.string().default('main'),
@@ -209,7 +222,21 @@ export const siteSchema = z.object({
     const { locales, defaultLocale } = site.i18n;
     if (!locales.includes(defaultLocale)) ctx.addIssue({ code: 'custom', path: ['i18n', 'locales'], message: '多語言列表必須包含預設語言。' });
     if (new Set(locales).size !== locales.length) ctx.addIssue({ code: 'custom', path: ['i18n', 'locales'], message: '多語言列表不可重複。' });
-    for (const lang of Object.keys(site.i18n.metadata)) if (!locales.includes(lang as typeof locales[number])) ctx.addIssue({ code: 'custom', path: ['i18n','metadata',lang], message: '中繼資料語言不在啟用清單中。' });
+    const reservedLanguagePrefixes = new Set(['blog', 'tag', 'tags', 'site', 'page', 'pages', 'post', 'posts',
+      'category', 'categories', 'topics', 'sitemap', '404', 'assets', '_astro', 'robots.txt']);
+    for (const locale of locales.filter(lang => lang !== defaultLocale)) {
+      if (reservedLanguagePrefixes.has(locale.toLowerCase()))
+        ctx.addIssue({ code: 'custom', path: ['i18n','locales'], message: '語言前綴與系統網址保留字衝突：' + locale });
+      if (site.contentTypes.some(type => type.id === locale.toLowerCase()))
+        ctx.addIssue({ code: 'custom', path: ['i18n','locales'], message: '語言前綴與 CPT 類型衝突：' + locale });
+    }
+    for (const [field, record] of [['metadata', site.i18n.metadata], ['messages', site.i18n.messages]] as const) {
+      for (const lang of Object.keys(record)) {
+        const parsed = localeCode.safeParse(lang);
+        if (!parsed.success || parsed.data !== lang || !locales.includes(lang))
+          ctx.addIssue({ code: 'custom', path: ['i18n', field, lang], message: '語言代碼必須為已啟用的標準 BCP 47 格式。' });
+      }
+    }
     if (site.language !== defaultLocale) ctx.addIssue({ code: 'custom', path: ['language'], message: 'language 必須與 i18n.defaultLocale 一致。' });
   }
   const reserved = new Set(['blog','site','post','posts','page','pages','tag','tags','category','categories','topics','sitemap','404','assets']);

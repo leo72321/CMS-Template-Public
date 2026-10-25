@@ -1,5 +1,7 @@
 # 天公仔CMS
 
+目前公版版本：**v0.2.0**｜[查看版本更新紀錄](CHANGELOG.md)
+
 <p align="center">
   <img src="assets/php-tiangong-meme.webp" alt="天公仔 PHP 工程師梗圖：寫 PHP 是走投無路的人在做的，老子我天公仔，看起來像走投無路的嗎？" width="680" />
 </p>
@@ -15,7 +17,7 @@ Astro 在建置時產生靜態 HTML。內容採 WordPress 的 Post（文章）�
 | 想看什麼 | 點這裡 |
 | --- | --- |
 | 有哪些網址、各自對應哪個檔案 | **[網站結構總覽](docs/SITE_STRUCTURE.md)** |
-| **多語言（可選）** | [多語言設定、翻譯文章、語言切換與 SEO](docs/多語言設定.md) |
+| **多語言（可選、數量自訂）** | [自行設定語言數量、翻譯文章、切換與 SEO](docs/多語言設定.md) |
 | 文章內容 | [文章資料夾](content/posts) |
 | 關於、服務等獨立頁面 | [獨立頁面資料夾](content/pages) |
 | 分類、標籤與主題中心 | [內容管理](docs/內容管理.md) |

@@ -1,6 +1,6 @@
 {
   "name": "cms-template",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "少爺的輕量靜態網站公版：繁體中文操作、Post / Page、SEO 自動化與 B2 圖床",
@@ -26,7 +26,10 @@
     "redirects:sync": "node --import tsx scripts/redirects.ts --sync",
     "redirects:check": "node --import tsx scripts/redirects.ts --check",
     "media:verify:full": "npm run media:verify -- --full",
-    "media:orphans": "node --import tsx scripts/media-orphans.ts"
+    "media:orphans": "node --import tsx scripts/media-orphans.ts",
+    "version:check": "node scripts/check-version.mjs",
+    "version:compare": "node scripts/check-version.mjs --compare-base",
+    "version:bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.3",

@@ -35,6 +35,14 @@
 
 GTM 只提供 ID 入口，不擅自替少爺新增追蹤事件。
 
+## CMS 公版版本管理（強制）
+
+- 公版的通用功能、BUG 修正、路由、API 或行為調整，每次 PR 都要增加 SemVer 版本號並寫入根目錄 `CHANGELOG.md`。
+- `major`：不相容或需要遷移；`minor`：向下相容的新功能；`patch`：Bug 或小修正。更新命令：`npm run version:bump -- minor "更新摘要"`。
+- 版本以 `package.json` 為準，`package-lock.json`、README 頂部與 CHANGELOG 必須相同；執行 `npm run version:check`。
+- 本倉庫 `leo72321/CMS-Template-Public` 的 PR 另執行版本升級保護；單純在衍生網站新增文章或調整內容，不必修改公版版本。
+- 版本號不等於 GitHub Release 或正式網站部署。只有實際完成那些流程才可宣稱已發布。
+
 ## 提交前
 
 1. `npm run urls:update`：檢查轉址後更新網址紀錄。
