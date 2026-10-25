@@ -22,6 +22,8 @@ jobs:
         run: |
           npm run docs:update
           npm run urls:update
-          npm run verify
+          npm run check
+          npm test
+          npm run build
       - name: 驗證中英西語實際靜態產物
         run: node scripts/assert-i18n-output.mjs
