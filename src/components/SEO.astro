@@ -1,8 +1,10 @@
 ---
+import { contentLocale } from '../lib/i18n';
 import { encodePath, type Route } from '../lib/model';
 import type { Site } from '../lib/schema';
 interface Props { route: Route; site: Site; }
 const { route, site } = Astro.props;
+const locale = route.locale ?? site.language;
 const canonical = `https://${site.domain}${encodePath(route.path)}`;
 const title = route.kind === 'home' ? site.title : `${route.title}｜${site.title}`;
 const cover = route.document?.data.cover;
@@ -27,7 +29,10 @@ const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 <meta name="description" content={route.description} />
 <meta name="robots" content={route.noindex ? 'noindex, follow' : 'index, follow'} />
 <link rel="canonical" href={canonical} />
-<meta property="og:locale" content="zh_TW" />
+<meta property="og:locale" content={locale.replace("-", "_")} />
+{route.alternates && !route.noindex && Object.entries(route.alternates).map(([lang,path]) => <link rel="alternate" hreflang={lang} href={`https://${site.domain}${encodePath(path)}`} />)}
+{route.alternates && !route.noindex && route.alternates[site.i18n.defaultLocale] && <link rel="alternate" hreflang="x-default" href={`https://${site.domain}${encodePath(route.alternates[site.i18n.defaultLocale])}`} />}
+
 <meta property="og:type" content={route.kind === 'post' || route.kind === 'cpt' ? 'article' : 'website'} />
 <meta property="og:site_name" content={site.title} />
 <meta property="og:title" content={title} />
