@@ -64,3 +64,21 @@ test('invalid locale configuration rejected; translations have their own identif
   assert.throws(()=>siteSchema.parse({ ...config(true), i18n:{enabled:true,locales:['zh-TW','en','en']} }),/不可重複/);
   assert.equal(t('es','switch',{language:'Español'}),'Cambiar a Español');
 });
+
+test('translated SEO metadata and changed translation URLs are protected', () => {
+  const cfg = siteSchema.parse({
+    ...config(true),
+    i18n: { enabled:true, defaultLocale:'zh-TW', locales:['zh-TW','en','es'],
+      metadata: { en: {title:'English brand',description:'English homepage'}, es: {title:'Marca',description:'Página principal'} } }
+  });
+  const m = makeModel(input(),cfg);
+  assert.equal(m.byPath.get('/en/')?.title,'English brand');
+  assert.equal(m.byPath.get('/en/')?.description,'English homepage');
+  assert.equal(m.byPath.get('/en/')?.siteTitle,'English brand');
+  const prior = {urls:{'broken-en':'/en/english/old-path/'},redirects:{}};
+  const current = Object.fromEntries(m.routes.filter(r=>r.document).map(r=>[r.document!.data.uid,r.path]));
+  assert.equal(current['broken-en'],'/en/english/damaged-video/');
+  assert.notEqual(current['broken-en'], prior.urls['broken-en']);
+  const es = m.byPath.get('/es/espanol/video-danado/');
+  assert.equal(es?.alternates?.en,'/en/english/damaged-video/');
+});
