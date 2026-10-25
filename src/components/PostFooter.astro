@@ -6,7 +6,7 @@ import PostList from './PostList.astro';
 import PostFooterCustom from './PostFooterCustom.astro';
 interface Props { model: Model; post: Post; locale?: string; }
 const { model, post, locale = model.site.language } = Astro.props;
-import { localePrefix, t } from '../lib/i18n';
+import { localePrefix, localizedPath, t } from '../lib/i18n';
 const prefix = localePrefix(locale, model.site);
 const categories = ('localizedCategories' in model ? (model.localizedCategories as Map<string, typeof model.categories>).get(locale) : model.categories) ?? model.categories;
 const tags = ('localizedTags' in model ? (model.localizedTags as Map<string, typeof model.tags>).get(locale) : model.tags) ?? model.tags;
@@ -34,26 +34,28 @@ const remaining = Math.max(0, relatedArticles.maxItems - referenced.size);
 const related = relatedArticles.enabled && remaining > 0 ? model.related(post, remaining, referenced) : [];
 const blocks = postFooter.blocks.filter(b => b.enabled && (b.title || b.text || b.href));
 const author = postFooter.author;
-const authorName = author.name || model.site.author;
+const authorName = author.name || (model.site.i18n.enabled ? (model.site.i18n.metadata[locale]?.author ?? model.site.author) : model.site.author);
+const localizedAuthorPage = author.page ? localizedPath(locale, author.page, model.site) : '';
+const authorHref = localizedAuthorPage && model.byPath.has(localizedAuthorPage) ? localizedAuthorPage : author.page;
 const photo = author.photo;
 const photoAvailable = !!photo && (photo.startsWith('https://') || (photo.startsWith('/') && existsSync(join(process.cwd(), 'public', photo.slice(1)))));
 const showTags = postFooter.tags && post.data.tags.length > 0;
 const hasFooter = showTags || author.enabled || blocks.length > 0 || related.length > 0;
 ---
 {hasFooter && <div class="post-footer" aria-label="文章下方資訊">
-  {showTags && <nav class="post-footer-tags" aria-label="文章標籤">
+  {showTags && <nav class="post-footer-tags" aria-label={t(locale, "tag", {}, model.site)}>
     {post.data.tags.map(id => tags.find(t => t.id === id)).filter((tag): tag is (typeof model.tags)[number] => !!tag).map(tag => <a href={prefix + '/tag/' + tag.slug + '/'}>#{tag.name}</a>)}
   </nav>}
-  {author.enabled && <section class="post-footer-author" aria-label="作者介紹">
+  {author.enabled && <section class="post-footer-author" aria-label={t(locale, "author", {}, model.site)}>
     {photoAvailable && <img src={photo} alt={authorName + '照片'} loading="lazy" decoding="async" width="88" height="88" />}
     <div class="post-footer-author-body">
       <strong>{authorName}</strong>{author.role && <span class="post-footer-role">・{author.role}</span>}
       {author.bio && <p>{author.bio}</p>}
-      {author.page && <a class="post-footer-author-link" href={author.page}>{author.linkText} →</a>}
+      {authorHref && <a class="post-footer-author-link" href={authorHref}>{author.linkText} →</a>}
     </div>
   </section>}
   {blocks.map(block => <PostFooterCustom block={block} />)}
-  {related.length > 0 && <section class="post-footer-related" aria-label="延伸閱讀">
+  {related.length > 0 && <section class="post-footer-related" aria-label={t(locale, "related", {}, model.site)}>
     <h2>{t(locale, "related", {}, model.site)}</h2>
     <PostList site={model.site} posts={related} categories={categories} prefix={prefix} locale={locale} />
   </section>}

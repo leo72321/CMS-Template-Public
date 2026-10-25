@@ -11,7 +11,7 @@ const suggest = site.i18n.enabled && site.i18n.languageSuggestion && Object.keys
 ---
 {choices.length > 1 && <div class="language-bar" aria-label="Language">
   <nav class="language-choices" aria-label="Language selection">
-    {choices.map(([lang, path]) => <a href={path} hreflang={lang} lang={lang} data-locale-link={lang} data-exact={route.alternates?.[lang] ? "1" : "0"} aria-current={lang === current ? 'page' : undefined}>{localeDisplayName(lang, site)}</a>)}
+    {choices.map(([lang, path]) => <a href={path} hreflang={route.alternates?.[lang] ? lang : undefined} lang={lang} data-locale-link={lang} data-exact={route.alternates?.[lang] ? "1" : "0"} aria-current={lang === current ? 'page' : undefined}>{localeDisplayName(lang, site)}</a>)}
   </nav>
   {suggest && <aside class="language-suggestion" id="language-suggestion" hidden data-current={current} data-prompt={t(current, 'languagePrompt', {}, site)} data-switch={t(current, 'switch', {}, site)} data-stay={t(current, 'stay', {}, site)}>
     <p id="language-suggestion-message"></p>
