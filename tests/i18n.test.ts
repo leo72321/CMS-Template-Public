@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { makeModel, type Input, type Post, type Page } from '../src/lib/model';
 import { postSchema, pageSchema, taxonomySchema, siteSchema } from '../src/lib/schema';
 import { localePrefix, languageEnabled, t } from '../src/lib/i18n';
+import { emptyRedirectHistory } from '../src/lib/redirect-manager';
 const config = (enabled: boolean) => siteSchema.parse({ domain: 'unit.example.org', title: '站名',
   description: '說明', author: '作者', language: 'zh-TW', media: { bucket: 'media' },
   indexable: true, i18n: { enabled, defaultLocale: 'zh-TW', locales: ['zh-TW', 'en', 'es'] } });
@@ -134,4 +135,18 @@ test('new locale codes are valid even when the website is still single-language'
   assert.equal(cfg.language,'pt-BR');
   assert.equal(cfg.i18n.enabled,false);
   assert.equal(languageEnabled(cfg),false);
+});
+
+test('multi-language redirects are recorded in redirectState.history and pagination titles are localized', () => {
+  const cfg = siteSchema.parse({ ...config(true), pageSize: 1 });
+  const i = input();
+  i.posts.push(
+    post('second-zh', { category: 'zh', slug: 'second-zh' }),
+    post('second-en', { locale: 'en', translationKey: 'second-zh', category: 'english', slug: 'second-en', aliases: ['/old-en/'] }),
+  );
+  const m = makeModel(i, cfg, new Date('2026-10-25T08:00:00Z'), false, emptyRedirectHistory());
+  assert.equal(m.redirects.get('/en/old-en/'), '/en/english/second-en/');
+  assert.ok(m.redirectState.history.entries['/en/old-en/'], 'non-default locale redirects must be persisted in redirect history');
+  assert.equal(m.byPath.get('/en/blog/page/2/')?.title, 'All articles - Page 2');
+  assert.equal(m.byPath.get('/blog/page/2/')?.title, '全部文章・第 2 頁');
 });

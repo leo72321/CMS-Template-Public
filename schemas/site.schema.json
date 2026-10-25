@@ -92,6 +92,16 @@
       "type": "boolean",
       "description": "是否允許 /blog/ 文章總覽被搜尋引擎收錄（仍受全站開關限制）"
     },
+    "headerNavPages": {
+      "type": "array",
+      "maxItems": 20,
+      "description": "頁首導覽列顯示的獨立頁面 slug 清單，預設為 [\"about\"]",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
     "storage": {
       "type": "object",
       "description": "S3 相容圖床供應商。由 GitHub Actions 圖床設定精靈選單自動設定。金鑰只放 Secrets。",

@@ -17,7 +17,10 @@ const match = '目前公版版本：**v' + previous + '**';
 if (!readme.includes(match)) throw Error('README 版本與 package.json 不一致，請先檢查版本紀錄');
 const changelog = readFileSync('CHANGELOG.md','utf8');
 if (!changelog.includes('## [' + previous + ']')) throw Error('CHANGELOG 版本不一致');
-const today = new Date().toLocaleDateString('en-CA', { timeZone:'Asia/Taipei' });
+const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+}).formatToParts(new Date()).map(p => [p.type, p.value]));
+const today = `${parts.year}-${parts.month}-${parts.day}`;
 pkg.version = next;
 lock.version = next;
 lock.packages[''].version = next;

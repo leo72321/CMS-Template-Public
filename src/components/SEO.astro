@@ -6,6 +6,7 @@ const { route, site } = Astro.props;
 const locale = route.locale ?? site.language;
 const canonical = `https://${site.domain}${encodePath(route.path)}`;
 const siteTitle = route.siteTitle ?? site.title;
+const authorName = site.i18n.enabled ? (site.i18n.metadata[locale]?.author ?? site.author) : site.author;
 const title = route.kind === 'home' ? siteTitle : `${route.title}｜${siteTitle}`;
 const cover = route.document?.data.cover;
 const image = cover ? new URL(cover.ogUrl ?? cover.url, `https://${site.domain}`).href : undefined;
@@ -14,7 +15,7 @@ const schema = document?.kind === 'post' || document?.kind === 'cpt' ? {
   '@context': 'https://schema.org', '@type': document.kind === 'post' ? 'BlogPosting' : 'Article', headline: document.data.title,
   description: document.data.description, url: canonical, mainEntityOfPage: canonical,
   ...(document.data.publishedAt ? { datePublished: `${document.data.publishedAt}T00:00:00+08:00`, dateModified: `${document.data.updatedAt ?? document.data.publishedAt}T00:00:00+08:00` } : {}),
-  author: { '@type': 'Person', name: site.author }, publisher: { '@type': 'Organization', name: siteTitle },
+  author: { '@type': 'Person', name: authorName }, publisher: { '@type': 'Organization', name: siteTitle },
   ...(image ? { image: [image] } : {}),
 } : {
   '@context': 'https://schema.org', '@type': route.kind === 'category' || route.kind === 'tag' || route.kind === 'blog' || route.kind === 'cpt-index' ? 'CollectionPage' : 'WebPage',

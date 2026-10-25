@@ -1,14 +1,14 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { siteSchema } from '../src/lib/schema';
+import { isValidDomain } from '../src/lib/storage-providers';
 
 if (process.env.GITHUB_REPOSITORY === 'leo72321/CMS-Template-Public') {
   throw new Error('請先使用公開模板建立自己的私人倉庫，再執行初始化。');
 }
 const input = (key: string) => (process.env['INIT_' + key] ?? '').trim();
 const domain = input('DOMAIN').toLowerCase();
-if (!/^(?=.{4,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(domain)
-    || domain.split('.').some(v => v.startsWith('-') || v.endsWith('-'))) {
+if (!isValidDomain(domain)) {
   throw new Error('正式網站網域格式錯誤。');
 }
 const previousText = readFileSync('site.config.json','utf8');

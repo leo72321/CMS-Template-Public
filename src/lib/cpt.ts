@@ -1,4 +1,5 @@
-import type { CptData, ContentTypeDefinition } from './schema';
+import type { CptData, ContentTypeDefinition, Site } from './schema';
+import { t } from './i18n';
 
 export function validateCptFields(data: CptData, definition: ContentTypeDefinition): void {
   const config = new Map(definition.fields.map(field => [field.id, field]));
@@ -14,7 +15,12 @@ export function validateCptFields(data: CptData, definition: ContentTypeDefiniti
     }
     const kind = field.type;
     const isLink = (text: string) => {
-      if (text.startsWith('/') && !text.startsWith('//') && !text.includes('..') && !/[?#]/.test(text)) return true;
+      if (text.startsWith('/') && !text.startsWith('//') && !/[?#]/.test(text)) {
+        try {
+          const decoded = decodeURIComponent(text);
+          return !decoded.includes('..') && !decoded.includes('\\');
+        } catch { return false; }
+      }
       try { const url = new URL(text); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; }
     };
     let valid = false;
@@ -36,10 +42,15 @@ export function validateCptFields(data: CptData, definition: ContentTypeDefiniti
   if (errors.length) throw new Error('CPT ' + definition.id + '（' + data.uid + '）欄位錯誤：\n' + errors.join('\n'));
 }
 
-export function formatCptValue(value: CptData['fields'][string], field: ContentTypeDefinition['fields'][number]): string {
-  if (typeof value === 'boolean') return value ? '是' : '否';
+export function formatCptValue(
+  value: CptData['fields'][string],
+  field: ContentTypeDefinition['fields'][number],
+  locale = 'zh-TW',
+  site?: Site,
+): string {
+  if (typeof value === 'boolean') return t(locale, value ? 'yes' : 'no', {}, site);
   if (typeof value === 'number' && field.type === 'price') return 'NT$' + new Intl.NumberFormat('zh-TW').format(value);
-  if (typeof value === 'number') return new Intl.NumberFormat('zh-TW').format(value);
-  if (Array.isArray(value)) return String(value.length) + ' 張圖片';
+  if (typeof value === 'number') return new Intl.NumberFormat(locale).format(value);
+  if (Array.isArray(value)) return t(locale, 'photoCount', { count: String(value.length) }, site);
   return String(value ?? '');
 }

@@ -25,11 +25,12 @@ export function buildSitemapParts(routes: readonly Route[], maxUrls = 200): Site
   const grouped = new Map<string, Route[]>(kinds.map(k => [k, []]));
   for (const route of routes) {
     if (route.noindex) continue;
-    // 首頁、Blog 彙整及正式 PAGE 一起屬於 pages；不建立沒有網址的空白 Sitemap。
+    // 首頁、Blog 彙整及正式 PAGE 一起屬於 pages；CPT 列表與內頁歸入同一 CPT 分片；不建立沒有網址的空白 Sitemap。
     const kind: SitemapKind = route.kind === 'post' ? 'posts'
       : route.kind === 'category' ? 'categories'
       : route.kind === 'tag' ? 'tags'
-      : route.kind === 'cpt' && route.document?.kind === 'cpt' ? route.document.data.type : 'pages';
+      : route.kind === 'cpt' && route.document?.kind === 'cpt' ? route.document.data.type
+      : route.kind === 'cpt-index' && route.contentType ? route.contentType.id : 'pages';
     if (!grouped.has(kind)) grouped.set(kind, []);
     grouped.get(kind)!.push(route);
   }

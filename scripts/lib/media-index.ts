@@ -53,7 +53,7 @@ export function loadMediaIndex(root = process.cwd()): MediaIndex {
 // 逐篇 Markdown 線性掃描 URL，不再對每篇文章依序比對所有 5 萬張圖片。
 // 這裡保留已引用封面、OG 和 srcset 全尺寸，且涵蓋 Markdown 與內嵌 HTML 的完整 HTTPS URL。
 // 本地 /assets 圖片不是遠端儲存物件，留給 HTML 產物驗收處理。
-export function collectUsedMedia(docs: Iterable<MediaDocument>, byUrl: Map<string, MediaEntry>): Set<string> {
+export function collectUsedMedia(docs: Iterable<MediaDocument>, byUrl: Map<string, MediaEntry>, site?: { postFooter: { author: { photo: string } } }): Set<string> {
   const used = new Set<string>();
   const include = (url: string | undefined) => {
     if (!url || url.startsWith('/')) return;
@@ -61,6 +61,7 @@ export function collectUsedMedia(docs: Iterable<MediaDocument>, byUrl: Map<strin
     const image = byUrl.get(url);
     for (const variant of image?.variants ?? []) used.add(variant.url);
   };
+  include(site?.postFooter.author.photo);
   for (const doc of docs) {
     const cover = doc.data.cover;
     if (cover) {

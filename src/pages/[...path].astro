@@ -20,6 +20,7 @@ const prefix = localePrefix(locale, model.site);
 const categories = ("localizedCategories" in model ? (model.localizedCategories as Map<string, typeof model.categories>).get(locale) : model.categories) ?? model.categories;
 const posts = ("localizedPosts" in model ? (model.localizedPosts as Map<string, typeof model.posts>).get(locale) : model.posts) ?? model.posts;
 const tags = ("localizedTags" in model ? (model.localizedTags as Map<string, typeof model.tags>).get(locale) : model.tags) ?? model.tags;
+const activeCategories = categories.filter(c => posts.some(p => p.data.category === c.id));
 const document = route.document;
 const entry = document ? (await getCollection(document.kind === 'post' ? 'posts' : document.kind === 'page' ? 'pages' : 'cpt')).find(e => e.data.uid === document.data.uid) : undefined;
 const rendered = entry ? await render(entry) : undefined;
@@ -34,8 +35,9 @@ const cpt = document?.kind === 'cpt' ? document as Cpt : undefined;
 const cptFields = cptType?.fields ?? [];
 ---
 <Base model={model} route={route}>
-  {route.kind === 'home' && <section class="hero"><p class="eyebrow">{t(locale, 'subjects', {}, model.site)}</p><h1>{route.siteTitle ?? model.site.title}</h1><p class="hero-description">{route.description}</p><a class="text-link" href={prefix + '/blog/'}>{t(locale, 'browse', {}, model.site)}</a></section>}
-  {route.kind === 'home' && <section class="section"><div class="section-heading"><h2>{t(locale, 'newest', {}, model.site)}</h2></div><PostList site={model.site} posts={posts.slice(0, 6)} categories={categories} prefix={prefix} locale={locale} /></section>}
+  {route.kind === 'home' && <section class="hero"><p class="eyebrow">{t(locale, 'subjects', {}, model.site)}</p><h1>{route.siteTitle ?? model.site.title}</h1><p class="hero-description">{route.description}</p><a class="text-link" href={prefix + '/blog/'}>{t(locale, 'browse', {}, model.site)} <span aria-hidden="true">↗</span></a></section>}
+  {route.kind === 'home' && <section class="section"><div class="section-heading"><h2>{t(locale, 'newest', {}, model.site)}</h2><span>{t(locale, 'postCount', { count: posts.length.toString().padStart(2, '0') }, model.site)}</span></div><PostList site={model.site} posts={posts.slice(0, 6)} categories={categories} prefix={prefix} locale={locale} />{!posts.length && <p class="empty">{t(locale, 'empty', {}, model.site)}</p>}</section>}
+  {route.kind === 'home' && activeCategories.length > 0 && <section class="section"><div class="section-heading"><h2>{t(locale, 'subjects', {}, model.site)}</h2></div><div class="category-list">{activeCategories.map(c => <a href={`${prefix}/${c.slug}/`}><strong>{c.name}</strong><span>{c.description}</span><span aria-hidden="true">↗</span></a>)}</div></section>}
   {route.kind !== 'home' && <Breadcrumbs items={crumbs} site={model.site} />}
   {route.kind !== "home" && <header class="page-heading"><p class="eyebrow">{category?.name ?? cptType?.name ?? (document ? t(locale, 'page', {}, model.site) : t(locale, 'index', {}, model.site))}</p><h1>{route.title}</h1><p>{route.description}</p>{date && <div class="meta"><time datetime={date.publishedAt}>{t(locale, "published", {}, model.site)} {date.publishedAt}</time>{date.updatedAt && <time datetime={date.updatedAt}>{t(locale, "updated", {}, model.site)} {date.updatedAt}</time>}</div>}</header>}
   {cover && <img class="cover" src={cover.url} alt={cover.alt} width={cover.width} height={cover.height} loading="eager" fetchpriority="high" decoding="async" srcset={cover.variants.length ? cover.variants.map(v => `${v.url} ${v.width}w`).join(', ') : undefined} sizes="(max-width: 1000px) 100vw, 960px" />}
@@ -43,12 +45,12 @@ const cptFields = cptType?.fields ?? [];
     const value = cpt.data.fields[field.id];
     return <div class="cpt-field"><dt>{field.label}</dt><dd>
       {field.type === 'gallery' && Array.isArray(value)
-        ? <div class="cpt-gallery">{value.map((url, i) => <img src={url} alt={cpt.data.title + ' 照片 ' + (i + 1)} width="640" height="480" loading="lazy" decoding="async" />)}</div>
+        ? <div class="cpt-gallery">{value.map((url, i) => <img src={url} alt={t(locale, 'photoAlt', { title: cpt.data.title, index: String(i + 1) }, model.site)} width="640" height="480" loading="lazy" decoding="async" />)}</div>
         : field.type === 'image' && typeof value === 'string'
         ? <img src={value} alt={field.label} width="640" height="480" loading="lazy" decoding="async" />
         : ['url', 'file'].includes(field.type) && typeof value === 'string'
-        ? <a href={value}>{field.type === 'file' ? '下載' + field.label : '開啟' + field.label}</a>
-        : formatCptValue(value, field)}
+        ? <a href={value}>{t(locale, field.type === 'file' ? 'downloadField' : 'openField', { label: field.label }, model.site)}</a>
+        : formatCptValue(value, field, locale, model.site)}
     </dd></div>;
   })}</dl></section>}
   {Content && <article class="prose" data-pagefind-body><Content /></article>}
@@ -59,9 +61,9 @@ const cptFields = cptType?.fields ?? [];
         {item.data.cover && <img src={item.data.cover.url} alt={item.data.cover.alt} width={item.data.cover.width} height={item.data.cover.height} loading="lazy" decoding="async" />}
         <h2>{item.data.title}</h2><p>{item.data.description}</p>
         <dl>{(route.contentType?.fields ?? []).filter(field => field.showOnList && item.data.fields[field.id] !== undefined).map(field =>
-          <div><dt>{field.label}</dt><dd>{formatCptValue(item.data.fields[field.id], field)}</dd></div>)}</dl>
-      </a>)}</div> : <p class="empty">尚無已發布的內容。</p>}
-    {route.totalPages! > 1 && <nav class="pagination" aria-label="內容分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : route.base + 'page/' + (route.page! - 1) + '/'}>← {t(locale, "prev", {}, model.site)}</a>}<span>第 {route.page}／{route.totalPages} 頁</span>{route.page! < route.totalPages! && <a rel="next" href={route.base + 'page/' + (route.page! + 1) + '/'}>{t(locale, "next", {}, model.site)} →</a>}</nav>}
+          <div><dt>{field.label}</dt><dd>{formatCptValue(item.data.fields[field.id], field, locale, model.site)}</dd></div>)}</dl>
+      </a>)}</div> : <p class="empty">{t(locale, "empty", {}, model.site)}</p>}
+    {route.totalPages! > 1 && <nav class="pagination" aria-label="內容分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : route.base + 'page/' + (route.page! - 1) + '/'}>← {t(locale, "prev", {}, model.site)}</a>}<span>{t(locale, "pageNumber", { page: String(route.page), total: String(route.totalPages) }, model.site)}</span>{route.page! < route.totalPages! && <a rel="next" href={route.base + 'page/' + (route.page! + 1) + '/'}>{t(locale, "next", {}, model.site)} →</a>}</nav>}
   </section>}
-  {route.posts && <>{route.kind === 'blog' && <nav class="tags" aria-label="文章分類">{categories.filter(c => posts.some(p => p.data.category === c.id)).map(c => <a href={`${prefix}/${c.slug}/`}>{c.name}</a>)}</nav>}<PostList site={model.site} posts={route.posts} categories={categories} locale={locale} prefix={prefix} />{!route.posts.length && <p class="empty">{t(locale, "empty", {}, model.site)}</p>}{route.totalPages! > 1 && <nav class="pagination" aria-label="文章分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : `${route.base}page/${route.page! - 1}/`}>← 上一頁</a>}<span>第 {route.page}／{route.totalPages} 頁</span>{route.page! < route.totalPages! && <a rel="next" href={`${route.base}page/${route.page! + 1}/`}>下一頁 →</a>}</nav>}</>}
+  {route.posts && <>{route.kind === 'blog' && <nav class="tags" aria-label="文章分類">{activeCategories.map(c => <a href={`${prefix}/${c.slug}/`}>{c.name}</a>)}</nav>}<PostList site={model.site} posts={route.posts} categories={categories} locale={locale} prefix={prefix} />{!route.posts.length && <p class="empty">{t(locale, "empty", {}, model.site)}</p>}{route.totalPages! > 1 && <nav class="pagination" aria-label="文章分頁">{route.page! > 1 && <a rel="prev" href={route.page === 2 ? route.base : `${route.base}page/${route.page! - 1}/`}>← {t(locale, "prev", {}, model.site)}</a>}<span>{t(locale, "pageNumber", { page: String(route.page), total: String(route.totalPages) }, model.site)}</span>{route.page! < route.totalPages! && <a rel="next" href={`${route.base}page/${route.page! + 1}/`}>{t(locale, "next", {}, model.site)} →</a>}</nav>}</>}
 </Base>

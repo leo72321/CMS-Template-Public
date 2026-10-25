@@ -1,14 +1,24 @@
 import { readFileSync, writeFileSync, mkdirSync, statSync, existsSync } from 'node:fs';
-import { relative, join, sep } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { load } from 'cheerio';
 import { readModel, files, run } from './lib/content';
 import { normalizePath, encodePath, type Route } from '../src/lib/model';
 import { buildSitemapParts, renderSitemapIndex, renderSitemapPart } from '../src/lib/sitemap';
+import { gtmInlineCode } from '../src/lib/gtm';
+// Compare emitted inline code to the actual approved component, not a magic substring.
+const localeAstroSource = readFileSync(new URL('../src/components/LanguageSwitcher.astro', import.meta.url), 'utf8');
+const approvedLocaleScript = localeAstroSource.match(/<script is:inline>([\s\S]*?)<\/script>/)?.[1]?.trim();
+if (!approvedLocaleScript) throw new Error('找不到預期的語言切換內嵌腳本，拒絕驗收。');
 run(() => {
   const model = readModel();
   const errors: string[] = [], warnings: string[] = [];
-  const html = new Map<string, { bytes: number; gzip: number; file: string }>();
+  const distRoot = resolve('dist');
+  const isDistFile = (decodedPath: string) => {
+    const full = resolve(distRoot, '.' + decodedPath);
+    return full.startsWith(distRoot + sep) && existsSync(full) && statSync(full).isFile();
+  };
+  const html = new Map<string, { bytes: number; gzip: number; file: string; ids?: Set<string> }>();
   for (const file of files('dist').filter(f => f.endsWith('.html'))) {
     const name = relative('dist', file).split(sep).join('/');
     const path = name === 'index.html' ? '/' : name === '404.html' ? '/404/' : normalizePath(`/${name.replace(/\/index\.html$/, '')}`);
@@ -17,6 +27,7 @@ run(() => {
   }
   const edges = new Map<string, Set<string>>(), contextual = new Map<string, Set<string>>();
   const inbound = new Map<string, Set<string>>();
+  const pendingHashChecks: Array<{ from: string; resolved: string; id: string; href: string }> = [];
   const expected: Route[] = [...model.routes, { path: '/404/', kind: 'page', noindex: true, title: '找不到這個頁面', description: '找不到頁面' }];
   for (const route of expected) {
     const entry = html.get(route.path);
@@ -24,6 +35,7 @@ run(() => {
     const { bytes, gzip } = entry;
     // Parse only the current page; do not retain thousands of Cheerio DOM trees.
     const $ = load(readFileSync(entry.file, 'utf8'));
+    entry.ids = new Set($('[id]').toArray().map(e => $(e).attr('id')!).filter(Boolean));
     if ($('h1').length !== 1) errors.push(`${route.path}：必須且只能有一個 H1（一級標題）。`);
     if ($('html').attr('lang') !== (route.locale ?? model.site.language)) errors.push(route.path + '：HTML lang 與語言設定不一致。');
     if (model.site.i18n.enabled) {
@@ -40,13 +52,28 @@ run(() => {
     if ($('meta[property="og:url"]').attr('content') !== canonical) errors.push(`${route.path}：OG 分享網址不正確。`);
     if (!$('script[type="application/ld+json"]').length) errors.push(`${route.path}：缺少結構化資料。`);
     $('script[type="application/ld+json"]').each((_, element) => { try { JSON.parse($(element).text()); } catch { errors.push(`${route.path}：結構化資料不是有效的 JSON。`); } });
+    let gtmCount = 0, localeCount = 0;
     $('script:not([type="application/ld+json"])').each((_, element) => {
-      if ((!model.site.gtmId || !$(element).text().includes('www.googletagmanager.com/gtm.js')) && !(model.site.i18n.enabled && model.site.i18n.languageSuggestion && $(element).text().includes('cms:locale-preference:v1'))) errors.push(`${route.path}：出現公版以外的前端 JavaScript，請確認必要性並調整效能規範。`);
+      const script = $(element), source = script.text().trim();
+      if (script.attr('src') !== undefined || script.closest('main, .prose').length) {
+        errors.push(`${route.path}：不允許外部或內容區塊的 JavaScript。`); return;
+      }
+      const isGtm = !!model.site.gtmId && script.parent().is('head')
+        && source === gtmInlineCode(model.site.gtmId);
+      const isLocale = model.site.i18n.enabled && model.site.i18n.languageSuggestion
+        && source === approvedLocaleScript;
+      if (isGtm && ++gtmCount <= 1) return;
+      if (isLocale && ++localeCount <= 1) return;
+      errors.push(`${route.path}：前端 JavaScript 未符合允許清單（完全內容比對）。`);
     });
     $('img').each((_, element) => {
       const img = $(element);
       if (!img.attr('alt')?.trim() || !Number(img.attr('width')) || !Number(img.attr('height'))) errors.push(`${route.path}：圖片缺少替代文字或尺寸：${img.attr('src')}`);
-      if (img.attr('src')?.startsWith('/') && !existsSync(join('dist', decodeURIComponent(img.attr('src')!)))) errors.push(`${route.path}：圖片檔案不存在：${img.attr('src')}`);
+      if (img.attr('src')?.startsWith('/')) {
+        let decodedImg = '';
+        try { decodedImg = decodeURIComponent(img.attr('src')!); } catch { decodedImg = ''; }
+        if (!decodedImg || !isDistFile(decodedImg)) errors.push(`${route.path}：圖片檔案不存在：${img.attr('src')}`);
+      }
     });
     if (bytes > 80000 || gzip > 25000) errors.push(`${route.path}：HTML 超過效能預算（原始 80 KB／壓縮 25 KB）。`);
     const targets = new Set<string>();
@@ -60,7 +87,10 @@ run(() => {
       const resolved = model.redirects.get(target) ?? target;
       if (html.has(resolved)) {
         if (resolved !== route.path) {
-          targets.add(resolved);
+          const isLocaleLink = a.attr('data-locale-link') !== undefined;
+          if (!isLocaleLink || model.byPath.get(resolved)?.kind === 'home') {
+            targets.add(resolved);
+          }
           if (!inbound.has(resolved)) inbound.set(resolved, new Set());
           inbound.get(resolved)!.add(route.path);
           if (a.closest('.prose, .topic-link').length) {
@@ -70,13 +100,15 @@ run(() => {
         }
         if (url.hash) {
           const id = decodeURIComponent(url.hash.slice(1));
-          const target$ = resolved === route.path ? $ : load(readFileSync(html.get(resolved)!.file, 'utf8'));
-          if (!target$('[id]').toArray().some(e => target$(e).attr('id') === id)) errors.push(`${route.path}：找不到連結段落 ${href}`);
+          pendingHashChecks.push({ from: route.path, resolved, id, href });
         }
         if (resolved !== target) warnings.push(`${route.path} 使用舊連結 ${target}，建議改成 ${resolved}`);
-      } else if (!existsSync(join('dist', decoded))) errors.push(`${route.path}：站內失效連結 ${href}`);
+      } else if (!isDistFile(decoded)) errors.push(`${route.path}：站內失效連結 ${href}`);
     });
     edges.set(route.path, targets);
+  }
+  for (const check of pendingHashChecks) {
+    if (!html.get(check.resolved)?.ids?.has(check.id)) errors.push(`${check.from}：找不到連結段落 ${check.href}`);
   }
   for (const path of html.keys()) if (!expected.some(r => r.path === path)) errors.push(`輸出未登記的頁面，可能是草稿誤發布：${path}`);
   const reachable = new Set<string>(['/']);
@@ -103,7 +135,7 @@ run(() => {
   }
   const actualURLs: string[] = [];
   for (const part of sitemapParts) {
-    const path = join(sitemapsDir, part.filename);
+    const path = resolve(sitemapsDir, part.filename);
     if (!existsSync(path)) { errors.push('Sitemap 子檔案不存在：' + part.filename); continue; }
     const raw = readFileSync(path, 'utf8');
     if (raw !== renderSitemapPart(part, model.site.domain)) {
@@ -136,6 +168,6 @@ run(() => {
   writeFileSync('.reports/SEO_REPORT.json', JSON.stringify({ passed: !errors.length, cssBytes, jsBytes, errors, warnings, pages }, null, 2) + '\n');
   writeFileSync('.reports/SEO_REPORT.md', ['# 網站建置驗收', '', `結果：${errors.length ? '未通過' : '通過'}。自家前端 JS：${jsBytes} bytes；CSS：${cssBytes} bytes。`, '', '> 這是靜態產物檢查；不等同真實使用者的 Core Web Vitals（核心網頁體驗指標）或第三方追蹤效能。', '', '| 網址 | HTML 大小 | 壓縮大小 | 連入頁數 | 正文／中心頁連入 | 不收錄 |', '| --- | --- | --- | --- | --- | --- |', ...pages.map(p => `| ${p.path} | ${p.bytes} | ${p.gzipBytes} | ${p.inbound} | ${p.contextualInbound} | ${p.noindex ? '是' : '否'} |`), '', '## 問題與提醒', '', ...errors.map(s => `- 錯誤：${s}`), ...warnings.map(s => `- 提醒：${s}`), ''].join('\n'));
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log(`✓ SEO／連結／索引／效能驗收通過：${pages.length} 頁；自家前端 JS ${jsBytes} bytes；CSS ${cssBytes} bytes。`);
+  console.log(`✓ SEO／連結／索引／效能驗收通過：${pages.length} 頁；自家前端 JS ${jsBytes} bytes，CSS ${cssBytes} bytes。`);
   if (warnings.length) console.log(`另有 ${warnings.length} 項編輯提醒，詳見 .reports/SEO_REPORT.md。`);
 });

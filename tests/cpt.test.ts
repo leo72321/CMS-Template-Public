@@ -37,8 +37,11 @@ test('CPT cars 跟 Blog 分開：/cars/ 列表、詳細頁、Sitemap 類型及�
   assert.equal(m.byPath.get('/cars/20261023-k7m2q/')?.kind,'cpt');
   assert.equal(m.byPath.get('/blog/')?.kind,'blog');
   const parts=buildSitemapParts(m.routes);
-  assert.ok(parts.find(x=>x.filename==='cars-001.xml'));
-  assert.match(renderSitemapPart(parts.find(x=>x.filename==='cars-001.xml')!,'cars.example.org'),/cars\/20261023-k7m2q/);
+  const carsPart=parts.find(x=>x.filename==='cars-001.xml');
+  assert.ok(carsPart);
+  const carsXml=renderSitemapPart(carsPart!,'cars.example.org');
+  assert.match(carsXml,/https:\/\/cars\.example\.org\/cars\//);
+  assert.match(carsXml,/cars\/20261023-k7m2q/);
 });
 
 test('CPT 必填、選單值、資料型別、未知欄位、未知類型及 UID 重複都會擋',()=>{

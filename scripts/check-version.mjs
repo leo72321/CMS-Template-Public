@@ -24,7 +24,7 @@ if (process.argv.includes('--compare-base')) {
   const filenames = execFileSync('git', ['diff', '--name-only', base, 'HEAD'], { encoding:'utf8' }).split('\n');
   // Only CMS-template changes require a bump. Per-site content and generated indices do not.
   const sourceChanged = filenames.some(name =>
-    /^(src\/|scripts\/|schemas\/|tests\/|\.github\/workflows\/|docs\/|AGENTS\.md$|README\.md$|site\.config\.json$|package(-lock)?\.json$)/.test(name)
+    /^(src\/|scripts\/|schemas\/|tests\/|\.github\/workflows\/|docs\/|AGENTS\.md$|README\.md$|site\.config\.json$|package(-lock)?\.json$|astro\.config\.ts$|tsconfig\.json$|\.nvmrc$|public\/)/.test(name)
       && !/^docs\/(SITE_STRUCTURE\.md|CONTENT_INDEX\.json)$/.test(name));
   if (sourceChanged) {
     const numeric = v => v.split('.').map(Number);

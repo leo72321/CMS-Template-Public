@@ -24,6 +24,8 @@ jobs:
           cache: npm
       - name: 安裝固定版本套件
         run: npm ci
+      - name: 掃描相依套件高風險弱點
+        run: npm audit --audit-level=high
       - name: 確認中文結構報表已提交
         run: npm run docs:check
       - name: 型別、測試、建置與網站驗收

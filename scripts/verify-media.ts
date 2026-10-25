@@ -1,6 +1,7 @@
 import { loadMediaIndex, collectUsedMedia } from './lib/media-index';
 import { planMediaVerification, verifyRemoteMedia, type VerifyMode } from './lib/media-verification';
 import { readInput, run } from './lib/content';
+import { loadSite } from '../src/lib/settings';
 
 // 僅供手動診斷：HEAD 看圖片連結有無死圖，不下載圖片內容，也不依賴 Git 比較基準。
 run(async () => {
@@ -18,7 +19,7 @@ run(async () => {
   const mode: VerifyMode = batch !== undefined ? { kind: 'batch', batchSize: batch } : { kind: 'full' };
   const { byUrl } = loadMediaIndex();
   const input = readInput(); // 草稿引用也納入，避免漏掉。
-  const used = collectUsedMedia([...input.posts, ...input.pages, ...(input.cpts ?? [])], byUrl);
+  const used = collectUsedMedia([...input.posts, ...input.pages, ...(input.cpts ?? [])], byUrl, loadSite());
   const { selected, totalUsed, batch: batchNumber } = planMediaVerification(used, byUrl, undefined, mode);
   const count = await verifyRemoteMedia(selected);
   const label = mode.kind === 'batch' ? '分批第 ' + ((batchNumber ?? 0) + 1) + ' 批' : '全部';
