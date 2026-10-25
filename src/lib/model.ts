@@ -1,6 +1,6 @@
 import type { Site, PostData, PageData, CptData, ContentTypeDefinition, Taxonomy, Topic } from './schema';
 import { validateCptFields } from './cpt';
-import { contentLocale, localizedPath, translationGroup } from './i18n';
+import { contentLocale, localizedPath, translationGroup, t } from './i18n';
 import { manageRedirects, type RedirectHistory } from './redirect-manager';
 
 export type Post = { data: PostData; body: string; file: string; kind: 'post' };
@@ -110,7 +110,7 @@ function makeSingleModel(input: Input, site: Site, now = new Date(), preview = f
       posts: items.slice((n - 1) * site.pageSize, n * site.pageSize), taxonomy, page: n, totalPages,
     }, n === 1 && (kind === 'blog' || kind === 'category'));
   };
-  archive('blog', '/blog/', '全部文章', `瀏覽${site.title}的文章與分類。`, posts);
+  archive('blog', '/blog/', t(site.language, 'blog', {}, site), t(site.language, 'blogDescription', { siteTitle: site.title }, site), posts);
   for (const d of visible) add({ path: pathFor(d, input.categories), title: d.data.title, description: d.data.description,
     kind: d.kind, document: d, noindex: !canIndex || !eligible(d) || (d.kind === 'cpt' && !site.contentTypes.find(t => t.id === d.data.type)?.indexable) }, true);
   for (const type of site.contentTypes) {
