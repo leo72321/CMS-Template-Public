@@ -30,8 +30,12 @@
     },
     "language": {
       "type": "string",
-      "description": "台灣繁體中文，請保持 zh-TW",
-      "const": "zh-TW"
+      "description": "預設語言；目前支援繁中、英文、西班牙文",
+      "enum": [
+        "zh-TW",
+        "en",
+        "es"
+      ]
     },
     "indexable": {
       "type": "boolean",
@@ -350,6 +354,46 @@
               }
             }
           }
+        }
+      }
+    },
+    "i18n": {
+      "type": "object",
+      "description": "可選多語言功能；預設關閉，既有網站不改網址",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "關閉時不載入多語言路由或提示"
+        },
+        "defaultLocale": {
+          "type": "string",
+          "enum": [
+            "zh-TW",
+            "en",
+            "es"
+          ],
+          "description": "保留原本沒有語言前綴的預設語言"
+        },
+        "locales": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "zh-TW",
+              "en",
+              "es"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "description": "已啟用的語言列表"
+        },
+        "languageSuggestion": {
+          "type": "boolean",
+          "default": true,
+          "description": "語言不一致且譯文存在時，提示使用者自行切換"
         }
       }
     }
