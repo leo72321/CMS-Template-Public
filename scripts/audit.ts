@@ -3,7 +3,7 @@ import { relative, join, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { load } from 'cheerio';
 import { readModel, files, run } from './lib/content';
-import { normalizePath, encodePath } from '../src/lib/model';
+import { normalizePath, encodePath, type Route } from '../src/lib/model';
 import { buildSitemapParts, renderSitemapIndex, renderSitemapPart } from '../src/lib/sitemap';
 run(() => {
   const model = readModel();
@@ -17,7 +17,7 @@ run(() => {
   }
   const edges = new Map<string, Set<string>>(), contextual = new Map<string, Set<string>>();
   const inbound = new Map<string, Set<string>>();
-  const expected = [...model.routes, { path: '/404/', noindex: true, title: '找不到這個頁面' }];
+  const expected: Route[] = [...model.routes, { path: '/404/', kind: 'page', noindex: true, title: '找不到這個頁面', description: '找不到頁面' }];
   for (const route of expected) {
     const entry = html.get(route.path);
     if (!entry) { errors.push(`未輸出頁面：${route.path}`); continue; }
