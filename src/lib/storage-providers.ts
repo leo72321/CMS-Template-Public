@@ -1,6 +1,8 @@
 export function isValidDomain(domain: string): boolean {
   return /^(?=.{4,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(domain)
-    && domain.split('.').every(label => label.length <= 63 && !label.startsWith('-') && !label.endsWith('-'));
+    && domain.split('.').every(label => label.length <= 63 && !label.startsWith('-') && !label.endsWith('-'))
+    && !/^(?:\d+\.){3}\d+$/.test(domain)
+    && !domain.endsWith('.local') && !domain.endsWith('.localhost');
 }
 
 // 所有供應商共用 AWS S3 API / SigV4 上傳器；差別只在連線端點、Region 與 CDN。
