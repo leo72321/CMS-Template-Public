@@ -33,11 +33,11 @@
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.3",
+    "@aws-sdk/client-s3": "^3.0.0",
     "astro": "7.4.1",
     "gray-matter": "4.0.3",
-    "sharp": "^0.34.0",
-    "zod": "^4.0.0",
-    "@aws-sdk/client-s3": "^3.0.0"
+    "sharp": "0.35.5",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.11",
