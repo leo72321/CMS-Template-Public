@@ -30,12 +30,10 @@
     },
     "language": {
       "type": "string",
-      "description": "預設語言；目前支援繁中、英文、西班牙文",
-      "enum": [
-        "zh-TW",
-        "en",
-        "es"
-      ]
+      "minLength": 2,
+      "maxLength": 35,
+      "pattern": "^[A-Za-z0-9-]+$",
+      "description": "網站預設語言，可自訂任意有效 BCP 47 語言代碼"
     },
     "indexable": {
       "type": "boolean",
@@ -369,26 +367,23 @@
         },
         "defaultLocale": {
           "type": "string",
-          "enum": [
-            "zh-TW",
-            "en",
-            "es"
-          ],
-          "description": "保留原本沒有語言前綴的預設語言"
+          "minLength": 2,
+          "maxLength": 35,
+          "pattern": "^[A-Za-z0-9-]+$",
+          "description": "不加網址前綴的預設語言（必須在 locales 中）"
         },
         "locales": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": [
-              "zh-TW",
-              "en",
-              "es"
-            ]
+            "minLength": 2,
+            "maxLength": 35,
+            "pattern": "^[A-Za-z0-9-]+$",
+            "description": "BCP 47 語言代碼，例如 zh-TW、en、ja、fr、pt-BR、zh-Hant-TW；由 CMS 確認有效性"
           },
           "uniqueItems": true,
           "minItems": 1,
-          "description": "已啟用的語言列表"
+          "description": "站長自行填寫任意數量的語言代碼，不受三種語言限制"
         },
         "languageSuggestion": {
           "type": "boolean",
@@ -397,7 +392,7 @@
         },
         "metadata": {
           "type": "object",
-          "description": "各語言品牌首頁 SEO 資訊（選填）：en、es 等；未指定時沿用預設語言",
+          "description": "每個已啟用語言自己的 SEO 資料、作者與選填語言顯示名稱；未設定時沿用預設資料",
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
@@ -417,7 +412,24 @@
               "author": {
                 "type": "string",
                 "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80,
+                "description": "語言選單顯示名稱，例如 Français、日本語"
               }
+            }
+          }
+        },
+        "messages": {
+          "type": "object",
+          "description": "任意已啟用語言的界面翻譯字串；如 ja: {home:'ホーム', blog:'記事一覧'}，未設定的字串使用內建回退文案",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1
             }
           }
         }
