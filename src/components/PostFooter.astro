@@ -55,7 +55,7 @@ const hasFooter = showTags || author.enabled || blocks.length > 0 || related.len
   {blocks.map(block => <PostFooterCustom block={block} />)}
   {related.length > 0 && <section class="post-footer-related" aria-label="延伸閱讀">
     <h2>{t(locale, "related", {}, model.site)}</h2>
-    <PostList posts={related} categories={categories} prefix={prefix} locale={locale} />
+    <PostList site={model.site} posts={related} categories={categories} prefix={prefix} locale={locale} />
   </section>}
 </div>}
 <style>
