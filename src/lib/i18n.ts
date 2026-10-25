@@ -4,6 +4,7 @@ import type { Site } from './schema';
 // Any BCP 47 language may be enabled in site.config.json.
 const dictionary = {
   'zh-TW': {
+    blogDescription: '瀏覽{siteTitle}的文章與分類。',
     home: '首頁', blog: '全部文章', newest: '最新文章', subjects: '依主題閱讀',
     browse: '瀏覽全部文章', empty: '內容準備中。', published: '發布', updated: '更新',
     page: '頁面', index: '文章索引', category: '文章分類', prev: '上一頁', next: '下一頁',
@@ -13,6 +14,7 @@ const dictionary = {
     notFound: '這個頁面不在這裡。', notFoundDescription: '這個網址可能已經移動，請回首頁或文章索引繼續瀏覽。',
   },
   en: {
+    blogDescription: 'Browse articles and categories on {siteTitle}.',
     home: 'Home', blog: 'All articles', newest: 'Latest articles', subjects: 'Browse topics',
     browse: 'Browse all articles', empty: 'Content is coming soon.', published: 'Published', updated: 'Updated',
     page: 'Page', index: 'Articles', category: 'Category', prev: 'Previous', next: 'Next',
@@ -22,6 +24,7 @@ const dictionary = {
     notFound: 'This page was not found.', notFoundDescription: 'This URL may have moved. Visit the home page or article index.',
   },
   es: {
+    blogDescription: 'Explora los artículos y categorías de {siteTitle}.',
     home: 'Inicio', blog: 'Todos los artículos', newest: 'Últimos artículos', subjects: 'Explorar temas',
     browse: 'Ver todos los artículos', empty: 'Próximamente habrá contenido.', published: 'Publicado', updated: 'Actualizado',
     page: 'Página', index: 'Artículos', category: 'Categoría', prev: 'Anterior', next: 'Siguiente',
