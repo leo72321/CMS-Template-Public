@@ -95,6 +95,14 @@ jobs:
               echo '只接受 HTTPS 檔案直連網址。' >&2
               exit 1
             fi
+            node -e '
+              const u = new URL(process.env.MEDIA_SOURCE_URL);
+              const h = u.hostname.toLowerCase();
+              if (u.protocol !== "https:" || u.username || u.password || h === "localhost" || h.endsWith(".local") || !h.includes(".") || /^\d+\.\d+\.\d+\.\d+$/.test(h) || h.startsWith("[")) {
+                console.error("來源網址必須為公開 HTTPS 網域，不可指向本機、內網或純 IP。");
+                process.exit(1);
+              }
+            '
             pathpart="${MEDIA_SOURCE_URL%%\?*}"
             filename="${pathpart##*/}"
             extension="${filename##*.}"
@@ -104,7 +112,7 @@ jobs:
             fi
             mkdir -p .tmp/media-inbox
             destination=".tmp/media-inbox/upload.${extension}"
-            curl --fail --location --proto '=https' --proto-redir '=https' --max-filesize 104857600 --max-time 150 --retry 0 --silent --show-error --output "$destination" "$MEDIA_SOURCE_URL"
+            curl --fail --location --max-redirs 3 --proto '=https' --proto-redir '=https' --max-filesize 104857600 --max-time 150 --retry 0 --silent --show-error --output "$destination" "$MEDIA_SOURCE_URL"
             echo "UPLOAD_SOURCE=$destination" >> "$GITHUB_ENV"
           else
             if [[ "$MEDIA_SOURCE_PATH" = /* || "$MEDIA_SOURCE_PATH" == *".."* || ! -f "$MEDIA_SOURCE_PATH" ]]; then

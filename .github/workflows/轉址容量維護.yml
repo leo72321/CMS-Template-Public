@@ -35,7 +35,7 @@ jobs:
         id: gate
         shell: bash
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && ! node -e "process.exit(require('./site.config.json').redirectManagement?.agePrune?.enabled ? 0 : 1)"; then
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && ! jq -e '.redirectManagement.agePrune.enabled == true' site.config.json >/dev/null; then
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "日期清理未啟用，跳過本次排程。" >> "$GITHUB_STEP_SUMMARY"
           else
