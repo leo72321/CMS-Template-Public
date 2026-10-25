@@ -1,6 +1,9 @@
 ---
+import { localePrefix, t } from '../lib/i18n';
+import type { Route } from '../lib/model';
 import type { Site } from '../lib/schema';
-interface Props { site: Site; }
-const { site } = Astro.props;
+interface Props { site: Site; route: Route; }
+const { site, route } = Astro.props;
+const locale = route.locale ?? site.language;
 ---
-<footer class="site-footer"><span>© {new Date().getFullYear()} {site.title}</span><a href="/blog/">文章索引</a></footer>
+<footer class="site-footer"><span>© {new Date().getFullYear()} {site.title}</span><a href={localePrefix(locale, site) + "/blog/"}>{t(locale, "index")}</a></footer>
