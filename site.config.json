@@ -6,6 +6,12 @@
   "description": "一套讓 Agent 專心寫內容、讓網站自動整理 SEO 結構的輕量公版。",
   "author": "網站編輯",
   "language": "zh-TW",
+  "i18n": {
+    "enabled": false,
+    "defaultLocale": "zh-TW",
+    "locales": ["zh-TW"],
+    "languageSuggestion": true
+  },
   "indexable": false,
   "productionBranch": "main",
   "gtmId": "",
