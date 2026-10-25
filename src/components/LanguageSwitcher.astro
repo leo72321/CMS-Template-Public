@@ -1,17 +1,17 @@
 ---
 import type { Model, Route } from '../lib/model';
-import { localeNames, t } from '../lib/i18n';
+import { localeNames, localePrefix, t } from '../lib/i18n';
 interface Props { model: Model; route: Route; }
 const { model, route } = Astro.props;
 const site = model.site;
 const current = route.locale ?? site.language;
 // Never offer translations that are not actually published.
-const choices = Object.entries(route.alternates ?? {}).filter(([, path]) => model.byPath.has(path));
-const suggest = site.i18n.enabled && site.i18n.languageSuggestion && choices.length > 1;
+const choices = site.i18n.locales.map(lang => [lang, route.alternates?.[lang] ?? localePrefix(lang, site) + '/'] as const).filter(([,path]) => model.byPath.has(path));
+const suggest = site.i18n.enabled && site.i18n.languageSuggestion && Object.keys(route.alternates ?? {}).length > 1;
 ---
 {choices.length > 1 && <div class="language-bar" aria-label="Language">
   <nav class="language-choices" aria-label="Language selection">
-    {choices.map(([lang, path]) => <a href={path} hreflang={lang} lang={lang} data-locale-link={lang} aria-current={lang === current ? 'page' : undefined}>{localeNames[lang] ?? lang}</a>)}
+    {choices.map(([lang, path]) => <a href={path} hreflang={lang} lang={lang} data-locale-link={lang} data-exact={route.alternates?.[lang] ? "1" : "0"} aria-current={lang === current ? 'page' : undefined}>{localeNames[lang] ?? lang}</a>)}
   </nav>
   {suggest && <aside class="language-suggestion" id="language-suggestion" hidden data-current={current} data-prompt={t(current, 'languagePrompt')} data-switch={t(current, 'switch')} data-stay={t(current, 'stay')}>
     <p id="language-suggestion-message"></p>
@@ -33,7 +33,7 @@ const suggest = site.i18n.enabled && site.i18n.languageSuggestion && choices.len
     .find(Boolean);
   if (!preferred || preferred === current) return;
   const link = links.get(preferred);
-  if (!link) return;
+  if (!link || link.dataset.exact !== '1') return;
   const name = link.textContent.trim();
   prompt.querySelector('#language-suggestion-message').textContent = prompt.dataset.prompt.replace('{language}', name);
   const go = prompt.querySelector('#language-suggestion-action');
