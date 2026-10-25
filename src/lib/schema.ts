@@ -26,7 +26,10 @@ export const imageSchema = z.object({
   variants: z.array(z.object({ url: imageURL, width: z.number().int().positive() }).strict()).default([]),
   ogUrl: imageURL.optional(),
 }).strict();
+export const localeCode = z.enum(['zh-TW', 'en', 'es']);
 const base = {
+  locale: localeCode.optional(),
+  translationKey: segment.optional(),
   uid: segment,
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().min(1).max(300),
@@ -92,6 +95,8 @@ export const cptSchema = z.object({
 
 
 export const taxonomySchema = z.object({
+  locale: localeCode.optional(),
+  translationKey: segment.optional(),
   id: segment,
   slug: segment,
   name: z.string().trim().min(1),
@@ -100,6 +105,8 @@ export const taxonomySchema = z.object({
   aliases: z.array(z.string().regex(/^\/(?:[^\s?#]+\/)?$/)).optional(),
 }).strict();
 export const topicSchema = z.object({
+  locale: localeCode.optional(),
+  translationKey: segment.optional(),
   id: segment,
   name: z.string().trim().min(1),
   description: z.string().default(''),
@@ -148,7 +155,14 @@ export const siteSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
   author: z.string().trim().min(1),
-  language: z.literal('zh-TW').default('zh-TW'),
+  language: localeCode.default('zh-TW'),
+  // Missing i18n configuration intentionally preserves every pre-existing single-language URL.
+  i18n: z.object({
+    enabled: z.boolean().default(false),
+    defaultLocale: localeCode.default('zh-TW'),
+    locales: z.array(localeCode).min(1).default(['zh-TW']),
+    languageSuggestion: z.boolean().default(true),
+  }).strict().prefault({ enabled: false }),
   indexable: z.boolean().default(false),
   productionBranch: z.string().default('main'),
   gtmId: z.string().regex(/^(GTM-[A-Z0-9]+)?$/).default(''),
@@ -190,6 +204,12 @@ export const siteSchema = z.object({
     cdnBase: z.string().refine((s) => !s || (s.startsWith('https://') && !/[?#]/.test(s))).default(''),
   }).strict(),
 }).strict().superRefine((site, ctx) => {
+  if (site.i18n.enabled) {
+    const { locales, defaultLocale } = site.i18n;
+    if (!locales.includes(defaultLocale)) ctx.addIssue({ code: 'custom', path: ['i18n', 'locales'], message: '多語言列表必須包含預設語言。' });
+    if (new Set(locales).size !== locales.length) ctx.addIssue({ code: 'custom', path: ['i18n', 'locales'], message: '多語言列表不可重複。' });
+    if (site.language !== defaultLocale) ctx.addIssue({ code: 'custom', path: ['language'], message: 'language 必須與 i18n.defaultLocale 一致。' });
+  }
   const reserved = new Set(['blog','site','post','posts','page','pages','tag','tags','category','categories','topics','sitemap','404','assets']);
   const typeIds = new Set<string>();
   for (const [i, type] of site.contentTypes.entries()) {
