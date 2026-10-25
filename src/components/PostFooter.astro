@@ -8,9 +8,9 @@ interface Props { model: Model; post: Post; locale?: string; }
 const { model, post, locale = model.site.language } = Astro.props;
 import { localePrefix, t } from '../lib/i18n';
 const prefix = localePrefix(locale, model.site);
-const categories = ('localizedCategories' in model ? model.localizedCategories.get(locale) : model.categories) ?? model.categories;
-const tags = ('localizedTags' in model ? model.localizedTags.get(locale) : model.tags) ?? model.tags;
-const posts = ('localizedPosts' in model ? model.localizedPosts.get(locale) : model.posts) ?? model.posts;
+const categories = ('localizedCategories' in model ? (model.localizedCategories as Map<string, typeof model.categories>).get(locale) : model.categories) ?? model.categories;
+const tags = ('localizedTags' in model ? (model.localizedTags as Map<string, typeof model.tags>).get(locale) : model.tags) ?? model.tags;
+const posts = ('localizedPosts' in model ? (model.localizedPosts as Map<string, typeof model.posts>).get(locale) : model.posts) ?? model.posts;
 const { postFooter, relatedArticles } = model.site;
 // 每篇 POST 個別計算推薦；正文已出現的站內文章先排除，避免重複。
 // Inspect only actual outbound links. Avoid scanning the full article body against every post.
