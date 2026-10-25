@@ -1,6 +1,6 @@
 import type { Site, PostData, PageData, CptData, ContentTypeDefinition, Taxonomy, Topic } from './schema';
 import { validateCptFields } from './cpt';
-import { contentLocale, localizedPath, localePrefix, translationGroup, t } from './i18n';
+import { contentLocale, localizedPath, translationGroup } from './i18n';
 import { manageRedirects, type RedirectHistory } from './redirect-manager';
 
 export type Post = { data: PostData; body: string; file: string; kind: 'post' };
@@ -231,7 +231,7 @@ function makeI18nModel(input: Input, site: Site, now: Date, preview: boolean, re
   for (const d of documents.filter(d => contentLocale(d.data, site) !== def)) {
     if (!sourceGroups.has(d.kind + ':' + translationGroup(d.data))) throw new Error('譯文找不到預設語言原稿：' + d.file);
   }
-  const taxFor = (items: Input['categories'], locale: string) =>
+  const taxFor = <T extends { locale?: string }>(items: T[], locale: string): T[] =>
     items.filter(x => contentLocale(x, site) === locale);
   const slice = (locale: string): Input => ({
     posts: input.posts.filter(x => contentLocale(x.data, site) === locale),
