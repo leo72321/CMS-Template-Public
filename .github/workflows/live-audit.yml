@@ -1,0 +1,32 @@
+name: CMS 正式站死連結與死圖巡檢
+on:
+  pull_request:
+    paths:
+      - scripts/live-audit.mjs
+      - .github/workflows/live-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    name: ${{ matrix.domain }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        domain: [holeboom.com, bittah.tw, banknote.tw, chifeng.com.tw, moaicar.com, dian7la.com]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Crawl actual pages, hyperlinks and image URLs
+        run: node scripts/live-audit.mjs https://${{ matrix.domain }}
+      - name: Upload site-specific JSON findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-audit-${{ matrix.domain }}
+          path: .reports/live-*.json
+          if-no-files-found: ignore
