@@ -9,6 +9,14 @@ on:
       - tests/live-audit.test.mjs
       - config/live-audit-sites.json
       - .github/workflows/live-audit.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/live-audit.mjs
+      - scripts/live-audit-targets.mjs
+      - scripts/live-audit-notify.mjs
+      - config/live-audit-sites.json
+      - .github/workflows/live-audit.yml
   schedule:
     # 每天 06:20 台灣時間；GitHub 的 cron 使用 UTC，可能延遲執行。
     - cron: '20 22 * * *'
