@@ -17,11 +17,12 @@ async function fixture({ broken }) {
     const send = (status, type, body) => { res.writeHead(status, { 'content-type': type }); res.end(body); };
     if (path === '/sitemap.xml') return send(200, 'application/xml', '<sitemapindex><sitemap><loc>' + root + '/posts-001.xml</loc></sitemap></sitemapindex>');
     if (path === '/posts-001.xml') return send(200, 'application/xml', '<urlset><url><loc>' + root + '/article/</loc></url></urlset>');
+    if (path === '/style.css') return send(req.method === 'HEAD' ? 404 : 200, 'text/css', 'body{margin:0}');
     if (path === '/good.png') return send(200, 'image/png', goodPng);
     if (path === '/good.svg') return send(200, 'image/svg+xml', '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>');
     if (path === '/wrong-image.png') return send(200, 'text/html', '<html><body>not image</body></html>');
     if (path === '/article/') return send(200, 'text/html', '<title>Post</title><a href="/">Home</a><img src="/good.svg" alt="good">');
-    if (path === '/') return send(200, 'text/html', '<title>Home</title><a href="/article/">Post</a>' +
+    if (path === '/') return send(200, 'text/html', '<title>Home</title><link rel="stylesheet" href="/style.css"><a href="/article/">Post</a>' +
       (broken ? '<a href="/missing/">Missing</a><img src="/wrong-image.png" alt="bad">' +
         '<img srcset="/good.png 1x, /missing-img.png 2x" alt="responsive">' : '<img src="/good.png" alt="good">'));
     return send(404, 'text/plain', 'missing');
@@ -57,7 +58,7 @@ test('Healthy pages and image signatures pass', async t => {
   assert.equal(report.errors, 0);
   assert.equal(report.sitemapsChecked, 2);
   assert.deepEqual(report.truncated, []);
-  assert.equal(report.assetsChecked, 2);
+  assert.equal(report.assetsChecked, 3);
 });
 test('404 pages, missing srcset and HTML disguised as images fail', async t => {
   const { server, root } = await fixture({ broken: true });
