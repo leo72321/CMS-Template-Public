@@ -1,6 +1,6 @@
 # 天公仔CMS
 
-目前公版版本：**v0.2.2**｜[查看版本更新紀錄](CHANGELOG.md)
+目前公版版本：**v0.2.3**｜[查看版本更新紀錄](CHANGELOG.md)
 
 <p align="center">
   <img src="assets/php-tiangong-meme.webp" alt="天公仔 PHP 工程師梗圖：寫 PHP 是走投無路的人在做的，老子我天公仔，看起來像走投無路的嗎？" width="680" />
@@ -192,3 +192,11 @@ npm run media:verify
 現在使用現有的 `npm run media:add` 就能把 PDF／ZIP／Word／Excel 等附件原樣上傳到已設定的 B2／S3，並自動寫入 CPT `file` 欄位或 Blog／Page 下載連結；不需要替附件手動複製網址。CPT `gallery` 可以用 `--field` 一次追加一張圖片。詳見 [圖片與附件操作](docs/圖片操作.md) 和 [CPT 設定](docs/CPT自訂內容.md)。附件上限 100 MiB；**此公開圖床不適合上傳機敏資料**。
 
 **GitHub Secrets 已填好的人：** 直接在 **Actions → 媒體上傳｜圖片與 PDF／ZIP 附件** 上傳，接受 HTTPS 檔案 URL 或 Repo 來源路徑，預設 `dry_run` 預覽；成功後會自動填回 CPT 欄位或文章連結、更新媒體索引並提交 main，不需要本機重填 KEY。[查看操作](docs/圖片操作.md#不用本機-key直接從-github-actions-上傳附件)。
+
+## 全 CMS 正式站巡檢
+
+公開公版的 GitHub Actions `CMS 正式站巡檢` 每天台灣時間約 06:20 掃描已啟用的 CMS 網站，檢查 Sitemap、站內頁面、死連結、外部連結、圖片、`srcset` 與 CSS 資源。每站輸出 JSON 與中文 Markdown 報告；確定故障會自動建立／更新同一張 GitHub Issue，恢復後結案。PR 只跑本地測試，避免每次程式修改都全站掃描。
+
+- **立刻手動巡檢**：到 [GitHub Actions](https://github.com/leo72321/CMS-Template-Public/actions/workflows/live-audit.yml) 選擇 `Run workflow`，`site=all` 為已啟用網站；可填單一網域或 `all-configured` 檢查全部十五站。
+- **調整網站清單**：編輯 [`config/live-audit-sites.json`](config/live-audit-sites.json)，尚未上線／示範 CMS 標記 `pending`，日常不掃描但保留手動檢查。
+- **故障報告和處理方式**：詳見 [正式站巡檢說明](docs/網站正式巡檢.md)。本工具只讀取公開網址，不會直接修改文章、圖片或 B2。

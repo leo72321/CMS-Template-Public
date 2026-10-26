@@ -1,0 +1,80 @@
+{
+  "description": "所有 CMS 網域；live 定時巡檢，pending 預設跳過但可手動指定。不可將 noindex 等同於未部署。",
+  "sites": [
+    {
+      "domain": "holeboom.com",
+      "state": "live",
+      "maxPages": 1500
+    },
+    {
+      "domain": "bittah.tw",
+      "state": "live",
+      "maxPages": 2400
+    },
+    {
+      "domain": "banknote.tw",
+      "state": "live",
+      "maxPages": 2400
+    },
+    {
+      "domain": "chifeng.com.tw",
+      "state": "live",
+      "maxPages": 1200
+    },
+    {
+      "domain": "moaicar.com",
+      "state": "live",
+      "maxPages": 2400
+    },
+    {
+      "domain": "dian7la.com",
+      "state": "live",
+      "maxPages": 2400
+    },
+    {
+      "domain": "mrr.tw",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "daylafit.com",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "ettoday.org",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "beautyoverture.com",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "kadenlegion.com",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "ptt.casa",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "zeyoking.com",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "sunbnice.com",
+      "state": "pending",
+      "maxPages": 1200
+    },
+    {
+      "domain": "sinkaray.com",
+      "state": "pending",
+      "maxPages": 1200
+    }
+  ]
+}

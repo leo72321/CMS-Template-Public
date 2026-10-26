@@ -1,0 +1,132 @@
+name: CMS 正式站巡檢
+
+on:
+  pull_request:
+    paths:
+      - scripts/live-audit.mjs
+      - scripts/live-audit-targets.mjs
+      - scripts/live-audit-notify.mjs
+      - tests/live-audit.test.mjs
+      - config/live-audit-sites.json
+      - .github/workflows/live-audit.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/live-audit.mjs
+      - scripts/live-audit-targets.mjs
+      - scripts/live-audit-notify.mjs
+      - config/live-audit-sites.json
+      - .github/workflows/live-audit.yml
+  schedule:
+    # 每天 06:20 台灣時間；GitHub 的 cron 使用 UTC，可能延遲執行。
+    - cron: '20 22 * * *'
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'all=正式六站；all-configured=全部15站；或指定單一網域'
+        required: true
+        type: string
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cms-live-audit-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.site || 'all' }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: github.event_name == 'pull_request'
+    name: 本地死連結與死圖測試
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: |
+          node --check scripts/live-audit.mjs
+          node --check scripts/live-audit-targets.mjs
+          node --check scripts/live-audit-notify.mjs
+          node scripts/live-audit-targets.mjs all > /dev/null
+          node scripts/live-audit-targets.mjs all-configured > /dev/null
+          node --test tests/live-audit.test.mjs
+
+  targets:
+    if: github.event_name != 'pull_request'
+    name: 選擇需要巡檢的網站
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 讀取 CMS 網域登錄表
+        id: select
+        env:
+          AUDIT_SITE: ${{ github.event_name == 'workflow_dispatch' && inputs.site || 'all' }}
+        run: |
+          MATRIX="$(node scripts/live-audit-targets.mjs "$AUDIT_SITE")"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "選中網域：$MATRIX"
+
+  audit:
+    if: github.event_name != 'pull_request'
+    name: ${{ matrix.domain }} 正式站驗收
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: 驗證頁面、圖片內容、站內連結與站外連結
+        env:
+          AUDIT_MAX_PAGES: ${{ matrix.maxPages }}
+          AUDIT_MAX_ASSETS: '12000'
+          AUDIT_MAX_EXTERNAL: '1200'
+          AUDIT_MAX_MS: '1380000'
+        run: node scripts/live-audit.mjs "https://${{ matrix.domain }}"
+      - name: 上傳逐站 JSON 與中文 Markdown 驗收報告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-audit-${{ matrix.domain }}
+          path: |
+            .reports/live-${{ matrix.domain }}.json
+            .reports/live-${{ matrix.domain }}.md
+          if-no-files-found: warn
+          retention-days: 7
+
+  notify:
+    if: always() && github.event_name != 'pull_request' && needs.targets.result == 'success'
+    needs: [targets, audit]
+    name: 彙總故障並同步追蹤 Issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: live-audit-*
+          path: .reports
+          merge-multiple: true
+      - name: 製作 Actions Summary；故障去重開單，復原自動結案
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUDIT_MATRIX: ${{ needs.targets.outputs.matrix }}
+        run: node scripts/live-audit-notify.mjs
