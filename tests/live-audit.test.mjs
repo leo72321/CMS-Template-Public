@@ -10,19 +10,22 @@ import { fileURLToPath } from 'node:url';
 const cli = fileURLToPath(new URL('../scripts/live-audit.mjs', import.meta.url));
 const goodPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZasAAAAASUVORK5CYII=', 'base64');
 
-async function fixture({ broken }) {
+async function fixture({ broken, originFailure = false }) {
   let root = '';
   const server = createServer((req, res) => {
     const path = req.url || '/';
     const send = (status, type, body) => { res.writeHead(status, { 'content-type': type }); res.end(body); };
-    if (path === '/sitemap.xml') return send(200, 'application/xml', '<sitemapindex><sitemap><loc>' + root + '/posts-001.xml</loc></sitemap></sitemapindex>');
+    if (path === '/sitemap.xml') return send(originFailure ? 523 : 200, 'application/xml', '<sitemapindex><sitemap><loc>' + root + '/posts-001.xml</loc></sitemap></sitemapindex>');
     if (path === '/posts-001.xml') return send(200, 'application/xml', '<urlset><url><loc>' + root + '/article/</loc></url></urlset>');
     if (path === '/style.css') return send(req.method === 'HEAD' ? 404 : 200, 'text/css', 'body{margin:0}');
+    if (path === '/clip.mp4') return send(200, 'video/mp4', Buffer.from('000000206674797069736f6d', 'hex'));
+    if (path === '/outage/') return send(523, 'text/html', '<title>Origin unavailable</title>');
     if (path === '/good.png') return send(200, 'image/png', goodPng);
     if (path === '/good.svg') return send(200, 'image/svg+xml', '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>');
     if (path === '/wrong-image.png') return send(200, 'text/html', '<html><body>not image</body></html>');
-    if (path === '/article/') return send(200, 'text/html', '<title>Post</title><a href="/">Home</a><img src="/good.svg" alt="good">');
+    if (path === '/article/') return originFailure ? send(523, 'text/html', '<title>Origin unavailable</title>') : send(200, 'text/html', '<title>Post</title><a href="/">Home</a><img src="/good.svg" alt="good">');
     if (path === '/') return send(200, 'text/html', '<title>Home</title><link rel="stylesheet" href="/style.css"><a href="/article/">Post</a>' +
+      (originFailure ? '<a href="/outage/">Second page</a>' : '<video controls><source src="/clip.mp4" type="video/mp4"></video><a href="/cdn-cgi/l/email-protection">Contact</a>') +
       (broken ? '<a href="/missing/">Missing</a><img src="/wrong-image.png" alt="bad">' +
         '<img srcset="/good.png 1x, /missing-img.png 2x" alt="responsive">' : '<img src="/good.png" alt="good">'));
     return send(404, 'text/plain', 'missing');
@@ -58,7 +61,8 @@ test('Healthy pages and image signatures pass', async t => {
   assert.equal(report.errors, 0);
   assert.equal(report.sitemapsChecked, 2);
   assert.deepEqual(report.truncated, []);
-  assert.equal(report.assetsChecked, 3);
+  assert.equal(report.assetsChecked, 4);
+  assert.ok(!report.findings.some(f => /clip\.mp4|cdn-cgi/.test(f.url)), JSON.stringify(report.findings));
 });
 test('404 pages, missing srcset and HTML disguised as images fail', async t => {
   const { server, root } = await fixture({ broken: true });
@@ -70,4 +74,14 @@ test('404 pages, missing srcset and HTML disguised as images fail', async t => {
   assert.ok(report.findings.some(f => f.url.endsWith('/missing/') && f.type === 'page' && f.status === 404));
   assert.ok(report.findings.some(f => f.url.endsWith('/missing-img.png') && f.type === 'image' && f.status === 404));
   assert.ok(report.findings.some(f => f.url.endsWith('/wrong-image.png') && f.type === 'image' && /text\/html/.test(f.detail)));
+});
+
+test('HTTP 523 errors are grouped as an origin availability issue, not dead links', async t => {
+  const { server, root } = await fixture({ broken: false, originFailure: true });
+  t.after(() => server.close());
+  const { code, report } = await run(root);
+  assert.equal(code, 1);
+  assert.equal(report.findings.filter(f => f.type === 'availability' && f.status === 523).length, 1);
+  assert.equal(report.findings.filter(f => f.type === 'page' && f.status === 523 && f.severity === 'error').length, 0);
+  assert.ok(report.findings.filter(f => f.status === 523 && f.severity === 'warning').length >= 3, JSON.stringify(report.findings));
 });

@@ -1,6 +1,6 @@
 {
   "name": "cms-template",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
   "description": "少爺的輕量靜態網站公版：繁體中文操作、Post / Page、SEO 自動化與 B2 圖床",

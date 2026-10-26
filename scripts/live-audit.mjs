@@ -51,7 +51,7 @@ function normalize(url) {
   return url;
 }
 function enqueuePage(url, source) {
-  if (!internal(url)) return;
+  if (!internal(url) || url.pathname.startsWith('/cdn-cgi/')) return;
   normalize(url);
   if (/\.(?:xml|pdf|zip|jpe?g|png|webp|gif|avif|svg|ico|css|js|woff2?|mp4|webm|txt)$/i.test(url.pathname)) {
     enqueueAsset(url.href, 'file', source);
@@ -123,7 +123,8 @@ async function sitemap(raw, depth = 0) {
   seenSitemaps.add(raw);
   const result = await request(raw);
   if (!result.response?.ok) {
-    add(depth === 0 ? 'error' : 'warning', 'sitemap', origin, raw, result.response?.status || 'network-error', result.error || '');
+    const status = result.response?.status || 'network-error';
+    add(status === 523 ? 'warning' : depth === 0 ? 'error' : 'warning', 'sitemap', origin, raw, status, result.error || '');
     return;
   }
   const xml = await result.response.text();
@@ -152,7 +153,7 @@ async function page([path, source]) {
   const response = result.response;
   if (!response?.ok) {
     const status = response?.status || 'network-error';
-    const severity = status === 403 || status === 429 ? 'warning' : 'error';
+    const severity = [403, 429, 523].includes(status) ? 'warning' : 'error';
     add(severity, 'page', source, url, status, result.error || '');
     if (response?.body) await response.body.cancel().catch(() => {});
     return;
@@ -168,10 +169,11 @@ async function page([path, source]) {
   const $ = load(html);
   if (!$('title').text().trim()) add('warning', 'html', source, url, response.status, 'Missing title');
   $('a[href]').each((_, el) => enqueueLink($(el).attr('href'), finalUrl));
-  $('img[src],img[data-src],source[src],video[poster]').each((_, el) =>
+  $('img[src],img[data-src],picture source[src],video[poster]').each((_, el) =>
     enqueueAsset($(el).attr('src') || $(el).attr('data-src') || $(el).attr('poster'), 'image', finalUrl));
-  $('img[srcset],source[srcset],img[data-srcset]').each((_, el) =>
+  $('img[srcset],picture source[srcset],img[data-srcset]').each((_, el) =>
     srcset($(el).attr('srcset') || $(el).attr('data-srcset'), finalUrl));
+  $('video[src],video source[src]').each((_, el) => enqueueAsset($(el).attr('src'), 'video', finalUrl));
   $('link[rel="stylesheet"][href]').each((_, el) => enqueueAsset($(el).attr('href'), 'stylesheet', finalUrl));
   $('link[rel="icon"][href],link[rel="apple-touch-icon"][href]').each((_, el) =>
     enqueueAsset($(el).attr('href'), 'image', finalUrl));
@@ -222,7 +224,7 @@ async function asset([url, meta]) {
   const response = result.response;
   if (!response?.ok) {
     const status = response?.status || 'network-error';
-    add([403, 429].includes(status) ? 'warning' : 'error',
+    add([403, 429, 523].includes(status) ? 'warning' : 'error',
       meta.kind, meta.source, url, status, result.error || '');
     if (response?.body) await response.body.cancel().catch(() => {});
     return;
@@ -259,6 +261,8 @@ try {
   await pool([...external.entries()], link);
 } catch (e) { add('error', 'crawler', origin, origin, 'exception', String(e)); }
 if (expired()) limits.add('time');
+const origin523 = findings.filter(x => x.status === 523 && (() => { try { return internal(new URL(x.url)); } catch { return false; } })());
+if (origin523.length >= 3) add('error', 'availability', origin, origin, 523, 'Cloudflare origin unreachable: ' + origin523.length + ' requests returned 523. These are site availability errors, not individual dead links.');
 const result = {
   origin, checkedAt: new Date().toISOString(), pagesChecked: visited.size, pagesFound: pages.size,
   sitemapsChecked: seenSitemaps.size, assetsChecked: assets.size, externalLinksChecked: external.size,
