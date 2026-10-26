@@ -215,7 +215,7 @@ async function asset([url, meta]) {
   // Range limits transfer volume when a CDN supports partial reads.
   let result = await request(url, meta.kind === 'image' ? 'GET' : 'HEAD',
     meta.kind === 'image' ? { Range: 'bytes=0-4095' } : {});
-  if (meta.kind !== 'image' && [403, 405, 501].includes(result.response?.status)) {
+  if (meta.kind !== 'image' && [403, 404, 405, 410, 501].includes(result.response?.status)) {
     if (result.response?.body) await result.response.body.cancel().catch(() => {});
     result = await request(url, 'GET', { Range: 'bytes=0-4095' });
   }
@@ -236,7 +236,7 @@ async function asset([url, meta]) {
 }
 async function link([url, source]) {
   let result = await request(url, 'HEAD');
-  if ([403, 405, 501].includes(result.response?.status)) {
+  if ([403, 404, 405, 410, 501].includes(result.response?.status)) {
     if (result.response?.body) await result.response.body.cancel().catch(() => {});
     result = await request(url, 'GET', { Range: 'bytes=0-4095' });
   }
