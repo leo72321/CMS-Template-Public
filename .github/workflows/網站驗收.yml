@@ -1,9 +1,11 @@
 name: 網站自動驗收
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
-  # GITHUB_TOKEN 推送不會觸發 push CI；監聽內容寫入工作流程完成事件。
+  # GITHUB_TOKEN 自動提交不會再觸發 push；在來源流程結束後檢查其是否真的產生變更。
   workflow_run:
     workflows:
       - 媒體上傳｜圖片與 PDF／ZIP 附件
@@ -11,43 +13,98 @@ on:
       - 網站初始化精靈（基本資料）
       - 301 轉址容量維護
     types: [completed]
+    branches: [main]
 permissions:
   contents: read
 concurrency:
-  group: 網站驗收-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: cms-verify-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   verify:
-    name: 內容、SEO 與效能檢查
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    name: 依變更分流：內容快檢／核心全驗
+    if: >
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: 取得網站原始碼
+      - name: 取得完整 Git 歷史以精準判定變動
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+      - name: 判定本次驗收範圍與有無實際變動
+        id: scope
+        shell: bash
+        env:
+          CMS_PUSH_BEFORE: ${{ github.event.before || '' }}
+          CMS_WORKFLOW_HEAD: ${{ github.event.workflow_run.head_sha || '' }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+            echo "手動驗收：完整模式" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          case "$GITHUB_EVENT_NAME" in
+            pull_request) base="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")" ;;
+            push) base="$CMS_PUSH_BEFORE" ;;
+            workflow_run) base="$CMS_WORKFLOW_HEAD" ;;
+            *) echo "mode=full" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+          if [[ -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+            echo "基準 SHA 不存在，保守執行完整驗收" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mode=skip
+          count=0
+          while IFS= read -r -d '' path; do
+            count=$((count + 1))
+            case "$path" in
+              content/*|docs/SITE_STRUCTURE.md|docs/CONTENT_INDEX.json)
+                if [[ "$mode" == skip ]]; then mode=fast; fi ;;
+              docs/*|README.md|AGENTS.md|CHANGELOG.md)
+                : ;;
+              *)
+                mode=full
+                break ;;
+            esac
+          done < <(git diff --name-only -z "$base" HEAD)
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "本次 CI：$mode（基準 $base；檔案分類數 $count）" >> "$GITHUB_STEP_SUMMARY"
       - name: 設定 Node.js 執行環境
+        if: steps.scope.outputs.mode != 'skip'
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - name: 安裝固定版本套件
+        if: steps.scope.outputs.mode != 'skip'
         run: npm ci
-      - name: 掃描相依套件高風險弱點
-        run: npm audit --audit-level=high
-      - name: 確認中文結構報表已提交
+      - name: 驗證中文結構報表
+        if: steps.scope.outputs.mode != 'skip'
         run: npm run docs:check
-      - name: 型別、測試、建置與網站驗收
+      - name: 內容快檢：Schema、媒體收據、網址鎖
+        if: steps.scope.outputs.mode == 'fast'
+        run: |
+          node --import tsx scripts/validate.ts
+          npm run urls:check
+      - name: 核心變更才掃描相依套件弱點
+        if: steps.scope.outputs.mode == 'full'
+        run: npm audit --audit-level=high
+      - name: 核心全驗：型別、單元、建置、產物
+        if: steps.scope.outputs.mode == 'full'
         run: npm run verify
-      - name: 保存可下載的中文驗收報表
-        if: always()
+      - name: 保存完整驗收報表
+        if: always() && steps.scope.outputs.mode == 'full'
         uses: actions/upload-artifact@v4
         with:
           name: 網站驗收報表
           path: .reports/
           include-hidden-files: true
           if-no-files-found: ignore
-      - name: 保存靜態網站產物
+      - name: 保存完整靜態網站產物
+        if: steps.scope.outputs.mode == 'full' && success()
         uses: actions/upload-artifact@v4
         with:
           name: 靜態網站

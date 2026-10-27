@@ -1,6 +1,6 @@
 # 天公仔CMS
 
-目前公版版本：**v0.2.4**｜[查看版本更新紀錄](CHANGELOG.md)
+目前公版版本：**v0.2.5**｜[查看版本更新紀錄](CHANGELOG.md)
 
 <p align="center">
   <img src="assets/php-tiangong-meme.webp" alt="天公仔 PHP 工程師梗圖：寫 PHP 是走投無路的人在做的，老子我天公仔，看起來像走投無路的嗎？" width="680" />
