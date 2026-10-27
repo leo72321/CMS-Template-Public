@@ -3,6 +3,14 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  # GITHUB_TOKEN 推送不會觸發 push CI；監聽內容寫入工作流程完成事件。
+  workflow_run:
+    workflows:
+      - 媒體上傳｜圖片與 PDF／ZIP 附件
+      - 圖床設定｜S3 一站式驗證與套用
+      - 網站初始化精靈（基本資料）
+      - 301 轉址容量維護
+    types: [completed]
 permissions:
   contents: read
 concurrency:
@@ -11,6 +19,7 @@ concurrency:
 jobs:
   verify:
     name: 內容、SEO 與效能檢查
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: 取得網站原始碼
