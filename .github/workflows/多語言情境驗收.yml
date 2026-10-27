@@ -1,14 +1,48 @@
 name: 多語言網站情境驗收
 on:
   push:
+    branches: [main]
+    paths:
+      - 'src/lib/**'
+      - 'src/pages/**'
+      - 'src/components/**'
+      - 'src/layouts/**'
+      - 'src/content.config.ts'
+      - 'astro.config.ts'
+      - 'scripts/test-i18n-fixture.mjs'
+      - 'scripts/assert-i18n-output.mjs'
+      - 'scripts/lib/remark-post-links.ts'
+      - 'tests/i18n.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/多語言情境驗收.yml'
   pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/**'
+      - 'src/pages/**'
+      - 'src/components/**'
+      - 'src/layouts/**'
+      - 'src/content.config.ts'
+      - 'astro.config.ts'
+      - 'scripts/test-i18n-fixture.mjs'
+      - 'scripts/assert-i18n-output.mjs'
+      - 'scripts/lib/remark-post-links.ts'
+      - 'tests/i18n.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/多語言情境驗收.yml'
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: cms-i18n-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   locale-smoke:
     name: 啟用多語言並完整建置驗收
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
