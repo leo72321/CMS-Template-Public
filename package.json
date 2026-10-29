@@ -32,15 +32,15 @@
     "version:bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {
-    "@astrojs/markdown-remark": "^7.3.3",
-    "@aws-sdk/client-s3": "^3.0.0",
-    "astro": "7.4.1",
+    "@astrojs/markdown-remark": "^7.3.4",
+    "@aws-sdk/client-s3": "^3.1156.0",
+    "astro": "7.4.2",
     "gray-matter": "4.0.3",
     "sharp": "0.35.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.11",
+    "@astrojs/check": "0.9.12",
     "@types/node": "^24.0.0",
     "cheerio": "^1.1.2",
     "tsx": "^4.20.0",
