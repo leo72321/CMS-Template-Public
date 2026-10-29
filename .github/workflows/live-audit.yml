@@ -100,7 +100,7 @@ jobs:
         run: node scripts/live-audit.mjs "https://${{ matrix.domain }}"
       - name: 上傳逐站 JSON 與中文 Markdown 驗收報告
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: live-audit-${{ matrix.domain }}
           path: |
