@@ -6,20 +6,25 @@ import { prepareMedia } from '../scripts/lib/media';
 import { uploadB2, type Upload } from '../scripts/lib/b2';
 import { siteSchema } from '../src/lib/schema';
 const site = siteSchema.parse({ domain: 'site.example.org', title: '測試', description: '說明', author: '作者', media: { bucket: 'wordpress-cdn' } });
-test('圖片只產生單尺寸 WebP 與分享圖片，中文路徑只編碼一次', async () => {
+test('圖片及 OG 只引用原始檔，不重新編碼、不產生尺寸版本，中文路徑只編碼一次', async () => {
   const image = await sharp({ create: { width: 1600, height: 900, channels: 4, background: '#287655' } }).png().toBuffer();
   const output = await prepareMedia(image, site, '/分類/文章/', 'cover', true);
-  assert.deepEqual(output.filter(o => o.contentType === 'image/webp').map(o => o.width), [1440]);
-  assert.equal(output.at(-1)!.width, 1200); assert.equal(output.at(-1)!.height, 630);
+  assert.equal(output.length, 1);
+  assert.equal(output[0].contentType, 'image/png');
+  assert.equal(output[0].width, 1600);
+  assert.equal(output[0].height, 900);
+  assert.ok(output[0].objectName.endsWith('.png'));
+  assert.deepEqual(output[0].bytes, image);
   assert.ok(output[0].objectName.startsWith('site.example.org/分類/文章/'));
   assert.ok(output[0].url.startsWith('https://cdn.site.example.org/file/wordpress-cdn/site.example.org/%E5%88%86%E9%A1%9E/'));
   assert.deepEqual((await prepareMedia(image, site, '/分類/文章/', 'cover', true)).map(o => o.url), output.map(o => o.url));
 });
-test('小圖不放大，內容雜湊會隨圖片內容變更', async () => {
+test('原始 GIF 不會被截為首格；內容雜湊隨圖片變更', async () => {
   const image = (background: string) => sharp({ create: { width: 300, height: 200, channels: 3, background } }).png().toBuffer();
   const a = await prepareMedia(await image('#ffffff'), site, '/分類/文章/', '圖', false);
   const b = await prepareMedia(await image('#000000'), site, '/分類/文章/', '圖', false);
   assert.equal(a.length, 1); assert.equal(a[0].width, 300); assert.notEqual(a[0].url, b[0].url);
+  assert.equal(a[0].contentType, 'image/png');
 });
 const bytes = Buffer.from('image-test-data');
 const digest = createHash('sha1').update(bytes).digest('hex');
