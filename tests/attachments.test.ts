@@ -36,39 +36,39 @@ function fixture(action: (dir: string) => void) {
   try { action(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
-test('PDF 與 ZIP 原檔上傳，保持內容與副檔名，不經過圖片轉檔，物件依 CMS/CPT/UID 專用目錄存放', () => {
+test('PDF 與 ZIP 原檔上傳，保持內容與副檔名，不經過圖片轉檔，物件依 CPT/UID 存放', () => {
   fixture(dir => {
     for (const ext of ['pdf', 'zip']) {
       const file = join(dir, 'report.' + ext);
       const bytes = Buffer.from(ext === 'pdf' ? '%PDF-1.7\nhello' : 'PK\x03\x04mock zip');
       writeFileSync(file, bytes);
-      const prepared = prepareAttachment(file, site, '/cms/cars/20261023-abcde/', 'report');
+      const prepared = prepareAttachment(file, site, '/cars/20261023-abcde/', 'report');
       assert.deepEqual(prepared.bytes, bytes);
       assert.equal(prepared.contentType, ext === 'pdf' ? 'application/pdf' : 'application/zip');
-      assert.match(prepared.objectName, new RegExp('^cars.example.com/cms/cars/20261023-abcde/report-[a-f0-9]{12}\\.' + ext + '$'));
-      assert.ok(prepared.url.startsWith('https://f002.backblazeb2.com/file/wordpress-cdn/cars.example.com/cms/cars/20261023-abcde/'));
+      assert.match(prepared.objectName, new RegExp('^cars.example.com/cars/20261023-abcde/report-[a-f0-9]{12}\\.' + ext + '$'));
+      assert.ok(prepared.url.startsWith('https://f002.backblazeb2.com/file/wordpress-cdn/cars.example.com/cars/20261023-abcde/'));
       assert.equal(prepared.width, undefined);
       assert.equal(prepared.height, undefined);
     }
   });
 });
 
-test('避免非法副檔名、空白附件、過大檔案；圖片維持獨立原檔處理', () => {
+test('避免非法副檔名、空白附件、過大檔案；圖片仍走 Sharp', () => {
   fixture(dir => {
     const pdf = join(dir, 'report.pdf');
     writeFileSync(pdf, Buffer.alloc(0));
-    assert.throws(() => prepareAttachment(pdf, site, '/cms/cars/uid/', 'report'), /非空/);
+    assert.throws(() => prepareAttachment(pdf, site, '/cars/uid/', 'report'), /非空/);
     writeFileSync(pdf, Buffer.from('ok'));
-    const first = prepareAttachment(pdf, site, '/cms/cars/uid/', 'report');
-    const second = prepareAttachment(pdf, site, '/cms/cars/uid/', 'report');
+    const first = prepareAttachment(pdf, site, '/cars/uid/', 'report');
+    const second = prepareAttachment(pdf, site, '/cars/uid/', 'report');
     assert.notEqual(first.url, second.url, '多次上傳不能覆蓋既有網址');
-    assert.throws(() => prepareAttachment(pdf, site, '/cms/cars/uid/', '../secret'), /名稱/);
+    assert.throws(() => prepareAttachment(pdf, site, '/cars/uid/', '../secret'), /名稱/);
     const html = join(dir, 'evil.html'); writeFileSync(html, Buffer.from('<script>'));
-    assert.throws(() => prepareAttachment(html, site, '/cms/cars/uid/', 'x'), /不支援/);
+    assert.throws(() => prepareAttachment(html, site, '/cars/uid/', 'x'), /不支援/);
     const svg = join(dir, 'evil.svg'); writeFileSync(svg, Buffer.from('<svg/>'));
-    assert.throws(() => prepareAttachment(svg, site, '/cms/cars/uid/', 'x'), /不支援/);
+    assert.throws(() => prepareAttachment(svg, site, '/cars/uid/', 'x'), /不支援/);
     truncateSync(pdf, maxAttachmentBytes + 1);
-    assert.throws(() => prepareAttachment(pdf, site, '/cms/cars/uid/', 'report'), /100 MiB/);
+    assert.throws(() => prepareAttachment(pdf, site, '/cars/uid/', 'report'), /100 MiB/);
     assert.equal(isImageFilename('car.JPG'), true);
     assert.equal(isImageFilename('report.pdf'), false);
   });
