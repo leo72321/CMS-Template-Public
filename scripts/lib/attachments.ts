@@ -5,6 +5,7 @@ import type { Site } from '../../src/lib/schema';
 import type { Document } from '../../src/lib/model';
 import type { Upload } from './b2';
 import { mediaBase } from '../../src/lib/settings';
+import { assertCmsMediaPath } from './media-path';
 
 // 明確允許常見文件、壓縮檔與影音附件；不接受可直接執行腳本的 HTML/SVG/JS 等。
 // 檔案本體原樣上傳，不讓 Sharp 處理，也不從 CDN 下載回來做雜湊驗證。
@@ -45,7 +46,7 @@ export function prepareAttachment(file: string, site: Site, objectPath: string, 
   const bytes = readFileSync(file);
   // 只為避免同名覆蓋與快取污染加本機隨機字尾，不必讀回或比對 CDN 資料。
   const suffix = randomBytes(6).toString('hex');
-  const relative = objectPath.replace(/^\/+|\/+$/g, '') + '/' + name + '-' + suffix + extension;
+  const relative = assertCmsMediaPath(objectPath) + '/' + name + '-' + suffix + extension;
   return {
     bytes,
     objectName: site.domain + '/' + relative,
