@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import type { Site } from '../../src/lib/schema';
 import type { ImageUpload } from './b2';
 import { mediaBase } from '../../src/lib/settings';
+import { assertCmsMediaPath } from './media-path';
 
 // Preserve the exact source bytes and dimensions. Never generate WebP, resized
 // copies or a second OG asset; the original also serves as the share image.
@@ -24,7 +25,7 @@ export async function prepareMedia(file: string | Buffer, site: Site, path: stri
     throw new Error('原檔格式不適合直接在網頁顯示；請使用 JPG、PNG、WebP、AVIF 或 GIF。TIFF/HEIF 不會暗中轉檔。');
   }
   const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-  const relative = `${path.replace(/^\/+|\/+$/g, '')}/${name}-${hash}.${format.extension}`;
+  const relative = `${assertCmsMediaPath(path)}/${name}-${hash}.${format.extension}`;
   return [{
     bytes,
     objectName: `${site.domain}/${relative}`,
