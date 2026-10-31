@@ -25,7 +25,7 @@ run(async () => {
       'CPT 相簿：npm run media:add -- --uid UID --file ./car.jpg --alt 車輛照片 --field photos（自動追加到 gallery）',
       'CPT 附件：npm run media:add -- --uid UID --file ./report.pdf --field report（自動填入 file 欄位）',
       '一般文章附件：npm run media:add -- --uid UID --file ./report.pdf --name report --label 車況報告（內文先放 <!-- 檔案:report -->）',
-      '支援 PDF、ZIP、Office、CSV、TXT、7Z、RAR、音訊及影片等附件（單檔 <=100 MiB）；圖片單尺寸 WebP。',
+      '支援 PDF、ZIP、Office、CSV、TXT、7Z、RAR、音訊及影片等附件（單檔 <=100 MiB）；圖片只保留原始檔，無轉檔及縮圖。',
       '附加 --dry-run 只列出目標網址，不上傳、不修改任何內容。',
     ].join('\n'));
     return;
@@ -56,7 +56,7 @@ run(async () => {
   const items = isImage
     ? await prepareMedia(values.file, site, path, name, !!values.cover)
     : [prepareAttachment(values.file, site, path, name)];
-  const imageVariants = isImage ? items.filter((i): i is ImageUpload => i.contentType === 'image/webp' && i.width !== undefined && i.height !== undefined) : [];
+  const imageVariants = isImage ? items.filter((i): i is ImageUpload => i.width !== undefined && i.height !== undefined) : [];
   const main = isImage ? imageVariants.at(-1)! : items[0];
   if (!main) throw new Error('沒有產生可上傳的媒體。');
   const url = main.url;
@@ -98,8 +98,8 @@ run(async () => {
     const cover = imageVariants.at(-1)!;
     parsed.data.cover = {
       url: cover.url, alt: values.alt, width: cover.width, height: cover.height,
-      variants: imageVariants.map(i => ({ url: i.url, width: i.width })),
-      ogUrl: items.find(i => i.contentType === 'image/jpeg')!.url,
+      variants: [],
+      ogUrl: cover.url,
     };
   } else if (fieldType && values.field) {
     parsed.data.fields = nextFields;
@@ -117,7 +117,7 @@ run(async () => {
     records.set(receipt.url, {
       ...receipt,
       ...(imageVariants.some(i => i.url === receipt.url)
-        ? { variants: imageVariants.map(i => ({ url: i.url, width: i.width })) }
+        ? { variants: [] }
         : {}),
     });
   }
