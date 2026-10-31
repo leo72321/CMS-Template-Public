@@ -8,7 +8,6 @@ import { readInput, run } from './lib/content';
 import { loadSite } from '../src/lib/settings';
 import { segment } from '../src/lib/schema';
 import { prepareMedia } from './lib/media';
-import { cmsMediaPath } from './lib/media-path';
 import { prepareAttachment, isImageFilename, resolveCptAssetField, applyCptAssetField, insertAttachmentLink } from './lib/attachments';
 import { uploadB2, type Receipt, type ImageUpload } from './lib/b2';
 import { uploadS3 } from './lib/s3';
@@ -53,7 +52,7 @@ run(async () => {
     }
   }
   const mediaKind = doc.kind === 'post' ? 'blog' : doc.kind === 'page' ? 'site' : doc.data.type;
-  const path = cmsMediaPath(mediaKind, doc.data.uid);
+  const path = '/' + mediaKind + '/' + doc.data.uid + '/';
   const items = isImage
     ? await prepareMedia(values.file, site, path, name, !!values.cover)
     : [prepareAttachment(values.file, site, path, name)];
