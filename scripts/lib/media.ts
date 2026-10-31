@@ -1,22 +1,36 @@
+import { readFileSync } from 'node:fs';
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import type { Site } from '../../src/lib/schema';
 import type { ImageUpload } from './b2';
 import { mediaBase } from '../../src/lib/settings';
+
+// Preserve the exact source bytes and dimensions. Never generate WebP, resized
+// copies or a second OG asset; the original also serves as the share image.
 export async function prepareMedia(file: string | Buffer, site: Site, path: string, name: string, cover: boolean): Promise<ImageUpload[]> {
-  const source = await sharp(file, { animated: false }).rotate().toBuffer();
-  const metadata = await sharp(source).metadata();
-  if (!['jpeg', 'png', 'webp', 'avif', 'tiff', 'gif'].includes(metadata.format ?? '') || !metadata.width || !metadata.height) throw new Error('請提供 JPG、PNG、WebP、AVIF、TIFF 或 GIF 圖片。GIF 只保留第一格。');
-  // 單尺寸 WebP（最大 1440，絕不放大小圖）；封面另外產生一張 OG JPEG。
-  const widths = [Math.min(1440, metadata.width!)];
-  const items: ImageUpload[] = [];
-  const add = async (bytes: Buffer, suffix: string, contentType: string) => {
-    const meta = await sharp(bytes).metadata();
-    const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
-    const relative = `${path.replace(/^\/+|\/+$/g, '')}/${name}-${suffix}-${hash}.${contentType === 'image/jpeg' ? 'jpg' : 'webp'}`;
-    items.push({ bytes, objectName: `${site.domain}/${relative}`, contentType, width: meta.width!, height: meta.height!, url: mediaBase(site) + relative.split('/').map(encodeURIComponent).join('/') });
+  void cover;
+  const bytes = typeof file === 'string' ? readFileSync(file) : file;
+  if (!bytes.length) throw new Error('圖片不能是空檔案。');
+  const metadata = await sharp(bytes, { animated: false }).metadata();
+  const formats: Record<string, { extension: string; contentType: string }> = {
+    jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+    png: { extension: 'png', contentType: 'image/png' },
+    webp: { extension: 'webp', contentType: 'image/webp' },
+    avif: { extension: 'avif', contentType: 'image/avif' },
+    gif: { extension: 'gif', contentType: 'image/gif' },
   };
-  for (const width of widths) await add(await sharp(source).resize({ width, withoutEnlargement: true }).webp({ quality: 80, effort: 5 }).toBuffer(), `${width}w`, 'image/webp');
-  if (cover) await add(await sharp(source).resize(1200, 630, { fit: 'cover', position: 'attention' }).jpeg({ quality: 82, mozjpeg: true }).toBuffer(), 'og', 'image/jpeg');
-  return items;
+  const format = formats[metadata.format ?? ''];
+  if (!format || !metadata.width || !metadata.height) {
+    throw new Error('原檔格式不適合直接在網頁顯示；請使用 JPG、PNG、WebP、AVIF 或 GIF。TIFF/HEIF 不會暗中轉檔。');
+  }
+  const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
+  const relative = `${path.replace(/^\/+|\/+$/g, '')}/${name}-${hash}.${format.extension}`;
+  return [{
+    bytes,
+    objectName: `${site.domain}/${relative}`,
+    contentType: format.contentType,
+    width: metadata.width,
+    height: metadata.height,
+    url: mediaBase(site) + relative.split('/').map(encodeURIComponent).join('/'),
+  }];
 }
